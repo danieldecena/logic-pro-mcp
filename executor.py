@@ -1,6 +1,10 @@
 import subprocess
 
 
+class NoProjectWindowError(RuntimeError):
+    """Logic is running but has no open project window (e.g. the chooser is up)."""
+
+
 def run_applescript(script: str, timeout: int = 10) -> str:
     result = subprocess.run(
         ["osascript"],
@@ -22,6 +26,11 @@ def run_applescript(script: str, timeout: int = 10) -> str:
             raise RuntimeError(
                 "Logic Pro Creator Studio doesn't appear to be running — open it first. "
                 f"(osascript: {err})"
+            )
+        if "invalid index" in low or "get window" in low or "-1719" in low:
+            raise NoProjectWindowError(
+                "No project window open in Logic Pro Creator Studio — open or create a "
+                f"project first. (osascript: {err})"
             )
         raise RuntimeError(f"osascript: {err}")
     return result.stdout.strip()

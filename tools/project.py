@@ -16,7 +16,10 @@ tell application "System Events"
     end tell
 end tell
 """
-        title = executor.run_applescript(script)
+        try:
+            title = executor.run_applescript(script)
+        except executor.NoProjectWindowError:
+            return "Logic Pro is running but no project is open"
         # Window title format: "ProjectName - Logic Pro Creator Studio"
         if " - " in title:
             return title.split(" - ")[0].strip()

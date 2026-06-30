@@ -57,7 +57,10 @@ def register_track_tools(mcp: FastMCP) -> None:
         """
         if not executor.logic_is_running():
             return "Logic Pro is not running"
-        out = executor.run_applescript(_LIST_SCRIPT).strip()
+        try:
+            out = executor.run_applescript(_LIST_SCRIPT).strip()
+        except executor.NoProjectWindowError as exc:
+            return str(exc)
         if not out:
             return "No tracks found (project may be empty or UI tree differs)"
         names = [n for n in out.split("\n") if n.strip()]

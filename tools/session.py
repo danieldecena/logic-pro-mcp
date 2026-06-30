@@ -72,7 +72,10 @@ _POS_RE = re.compile(r"^\d+\s+\d+\s+\d+\s+\d+$")
 
 
 def _get_fields() -> list[str]:
-    raw = executor.run_applescript(_FIELD_SCRIPT)
+    try:
+        raw = executor.run_applescript(_FIELD_SCRIPT)
+    except executor.NoProjectWindowError:
+        return []
     return [v for v in raw.split("\n") if v.strip()]
 
 
@@ -105,7 +108,10 @@ def register_session_tools(mcp: FastMCP) -> None:
         """Return the current key signature from Logic Pro's transport bar (e.g. 'C', 'Am')."""
         if not executor.logic_is_running():
             return "Logic Pro is not running"
-        for val in _get_fields():
+        fields = _get_fields()
+        if not fields:
+            return "No project open or transport bar not readable"
+        for val in fields:
             if _KEY_RE.match(val.strip()):
                 return val.strip()
         return "Key signature field not found in transport bar"
@@ -115,7 +121,10 @@ def register_session_tools(mcp: FastMCP) -> None:
         """Return the current playhead position as 'bar beat division tick' from Logic Pro."""
         if not executor.logic_is_running():
             return "Logic Pro is not running"
-        for val in _get_fields():
+        fields = _get_fields()
+        if not fields:
+            return "No project open or transport bar not readable"
+        for val in fields:
             if _POS_RE.match(val.strip()):
                 return val.strip()
         return "Bar position field not found in transport bar"
