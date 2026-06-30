@@ -25,6 +25,14 @@ end tell
     @mcp.tool()
     def logic_open_project(path: str) -> str:
         """Open a Logic Pro project file at the given absolute path."""
+        import os
+
+        expanded = os.path.expanduser(path)
+        if not os.path.exists(expanded):
+            return f"No file at {expanded}. Pass an absolute path to a .logicx project."
+        if not expanded.endswith(".logicx"):
+            return f"{expanded} is not a .logicx project bundle."
+        path = expanded
         script = f"""
 tell application "Logic Pro"
     open POSIX file "{path}"

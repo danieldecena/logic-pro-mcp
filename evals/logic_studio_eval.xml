@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Logic Studio MCP evaluation (mcp-builder Phase 4).
+  Read-only, stable, single-answer questions. Library questions assume a SEEDED
+  workspace — point LOGIC_STUDIO_MUSIC_ROOT at tests/fixtures or the structure
+  described in each question. Capability questions are stable regardless of data.
+  Run with the mcp-builder evaluation harness against the running server.
+-->
+<evaluation>
+  <qa_pair>
+    <question>Which stem-separation modes does the pipeline_separate_stems tool accept? List them comma-separated, alphabetically.</question>
+    <answer>4stem, 6stem, instrumental</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>What are the two valid sensitivity values for the vocal chopping tool?</question>
+    <answer>tight, loose</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>In a workspace where Projects/Active contains exactly one bundle named Beat1.logicx, how many projects does library_list_projects report for the Active state?</question>
+    <answer>1</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>When promoting a draft to Exports/Finals with a final name that already exists, what does the library_promote_export tool do — overwrite, or refuse?</question>
+    <answer>refuse</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>What System Events process name must be used to control the application, given it is the Logic Pro Creator Studio edition?</question>
+    <answer>Logic Pro Creator Studio</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which transport tool returns the playhead to bar 1, and what key does it send (key code number)?</question>
+    <answer>logic_go_to_start, key code 36</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>If Logic Pro is not running, which session tool can still return an approximate value by reading the newest Active .logicx project file?</question>
+    <answer>logic_get_tempo</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>In a Stems folder containing only htdemucs/Song A, what single entry does library_list_stems return?</question>
+    <answer>htdemucs/Song A</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>Which two destination stages can library_list_exports list?</question>
+    <answer>Drafts, Finals</answer>
+  </qa_pair>
+  <qa_pair>
+    <question>What is the total number of tools the server registers after Phase C (transport, project, session, utility, tracks, bounce, pipeline, library combined)?</question>
+    <answer>34</answer>
+  </qa_pair>
+</evaluation>

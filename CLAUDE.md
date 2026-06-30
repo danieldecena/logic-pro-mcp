@@ -26,16 +26,35 @@ pip install -r requirements.txt
 Grant Terminal (or Claude Code's shell) Accessibility permission:
 System Settings → Privacy & Security → Accessibility → add Terminal / your IDE.
 
-## Structure
+## Structure — unified "Creator Studio" MCP (34 tools)
 
 | File | Purpose |
 |------|---------|
-| `server.py` | FastMCP entry + tool registration |
-| `executor.py` | `run_applescript()` wrapper — all osascript goes through here |
+| `server.py` | FastMCP entry + registers all 8 tool modules |
+| `executor.py` | `run_applescript()` wrapper (classifies accessibility vs not-running errors) |
+| `config.py` | music-workspace root + library paths; `LOGIC_STUDIO_MUSIC_ROOT` env override |
 | `tools/transport.py` | play, stop, record, rewind, go_to_start, fast_forward |
-| `tools/project.py` | get_current_project, open_project, save, new_project |
+| `tools/project.py` | get_current_project, open_project (validates path), save, new_project |
 | `tools/utility.py` | undo, redo, navigate_menu, get_status |
-| `tools/session.py` | get_tempo, get_key, get_bar_position |
+| `tools/session.py` | get_tempo (with .logicx fallback), get_key, get_bar_position |
+| `tools/tracks.py` | list_tracks, add_track, mute, solo *(best-effort UI scripting)* |
+| `tools/bounce.py` | bounce *(best-effort)*, export |
+| `tools/pipeline.py` | download, separate_stems, chop_vocals, run_full — wraps `music-core.sh` |
+| `tools/library.py` | list projects/samples/stems/exports; new-from-template, archive, promote |
+| `tests/test_studio.py` | pytest: config, pipeline command-builder, library ops (temp workspace) |
+| `evals/logic_studio_eval.xml` | mcp-builder Phase-4 eval questions |
+
+## Music workspace
+
+The `pipeline_*` and `library_*` tools operate on the music workspace at
+`~/Developer/music` (override with `LOGIC_STUDIO_MUSIC_ROOT`). Pipeline tools
+shell out to `<root>/lib/music-core.sh` and need `demucs`, `gamdl`/`yt-dlp`,
+`ffmpeg` on PATH. Run tests: `python -m pytest -q tests/`.
+
+### Tool tiers (reliability)
+- ★★★ deterministic: all `pipeline_*`, `library_*`, transport, open/save.
+- ★★ solid-but-brittle: track ops, menu navigation, session reads (UI scripting).
+- ★ best-effort: `logic_bounce` (two-dialog flow). Verify against a live session.
 
 ## Add to Claude
 
