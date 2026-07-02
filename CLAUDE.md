@@ -75,7 +75,7 @@ shell out to `<root>/lib/music-core.sh` and need `demucs`, `gamdl`/`yt-dlp`,
 ## Add to Claude
 
 ```bash
-claude mcp add logic-pro -- /Users/home/Developer/logic-pro-mcp/.venv/bin/python /Users/home/Developer/logic-pro-mcp/server.py
+claude mcp add -s user logic-pro -- /Users/home/Developer/music/logic-pro-mcp/.venv/bin/python /Users/home/Developer/music/logic-pro-mcp/server.py
 ```
 
 ## Key rules

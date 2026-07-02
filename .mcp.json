@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "logic-pro": {
-      "command": "/Users/home/Developer/logic-pro-mcp/.venv/bin/python",
-      "args": ["/Users/home/Developer/logic-pro-mcp/server.py"]
+      "command": "/Users/home/Developer/music/logic-pro-mcp/.venv/bin/python",
+      "args": ["/Users/home/Developer/music/logic-pro-mcp/server.py"]
     }
   }
 }
