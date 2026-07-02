@@ -72,6 +72,25 @@ end tell
 _KEY_RE = re.compile(r"^[A-Ga-g][b#]?\s*(m|maj|min|major|minor)?$", re.IGNORECASE)
 _POS_RE = re.compile(r"^\d+\s+\d+\s+\d+\s+\d+$")
 
+# The control-bar key signature is an AXPopUpButton (value like "C Major"),
+# not a text field — scan the window's elements for it.
+_KEY_POPUP_SCRIPT = """
+tell application "System Events"
+    tell process "Logic Pro Creator Studio"
+        set ec to entire contents of front window
+        repeat with el in ec
+            try
+                if role of el is "AXPopUpButton" then
+                    set v to (value of el) as string
+                    if v contains "Major" or v contains "Minor" then return v
+                end if
+            end try
+        end repeat
+        return ""
+    end tell
+end tell
+"""
+
 
 def _get_fields() -> list[str]:
     try:
@@ -115,13 +134,13 @@ def register_session_tools(mcp: FastMCP) -> None:
         """
         if not executor.logic_is_running():
             raise ToolError("Logic Pro is not running")
-        fields = _get_fields()
-        if not fields:
-            raise ToolError("No project open or transport bar not readable")
-        for val in fields:
-            if _KEY_RE.match(val.strip()):
-                return {"key": val.strip(), "source": "transport"}
-        raise ToolError("Key signature field not found in transport bar")
+        try:
+            val = executor.run_applescript(_KEY_POPUP_SCRIPT).strip()
+        except executor.NoProjectWindowError:
+            raise ToolError("No project open")
+        if val:
+            return {"key": val, "source": "transport"}
+        raise ToolError("Key signature control not found in transport bar")
 
     @mcp.tool()
     def logic_get_bar_position() -> dict:

@@ -15,21 +15,27 @@ from fastmcp.exceptions import ToolError
 
 _PROC = 'tell process "Logic Pro Creator Studio"'
 
+# Track headers are AXTextFields whose parent is an AXGroup inside an AXList
+# (the tracks-header area). This distinguishes them from the channel-strip name
+# field (whose parent chain is AXLayoutItem -> AXLayoutArea). Derived from the
+# live AX tree — re-inspect with `entire contents of front window` if it breaks.
 _LIST_SCRIPT = """
 tell application "System Events"
     tell process "Logic Pro Creator Studio"
-        set mainWindow to front window
-        set scrollAreas to (every UI element of mainWindow whose role is "AXScrollArea")
         set trackNames to {}
-        repeat with sa in scrollAreas
+        set ec to entire contents of front window
+        repeat with el in ec
             try
-                set theTable to (first UI element of sa whose role is "AXTable")
-                repeat with rowItem in (every row of theTable)
-                    try
-                        set tf to (first UI element of rowItem whose role is "AXTextField")
-                        set end of trackNames to (value of tf)
-                    end try
-                end repeat
+                if role of el is "AXTextField" then
+                    set p1 to (value of attribute "AXParent" of el)
+                    set p2 to (value of attribute "AXParent" of p1)
+                    if (role of p1 is "AXGroup") and (role of p2 is "AXList") then
+                        set v to (value of el) as string
+                        if v is not "" and v is not "missing value" then
+                            set end of trackNames to v
+                        end if
+                    end if
+                end if
             end try
         end repeat
         set AppleScript's text item delimiters to linefeed
