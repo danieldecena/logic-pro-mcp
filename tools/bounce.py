@@ -8,6 +8,7 @@ they return the conventional Exports location for the caller to poll.
 
 import executor
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
 
 _PROC = 'tell process "Logic Pro Creator Studio"'
 
@@ -37,7 +38,7 @@ def register_bounce_tools(mcp: FastMCP) -> None:
         Returns guidance and the conventional Exports path to poll for output.
         """
         if not executor.logic_is_running():
-            return "Logic Pro is not running"
+            raise ToolError("Logic Pro is not running")
         open_script = f"""
 tell application "Logic Pro" to activate
 tell application "System Events"
@@ -100,12 +101,13 @@ end tell
         verbatim (e.g. 'Selection as Audio File...'). Opens its dialog.
         """
         if not executor.logic_is_running():
-            return "Logic Pro is not running"
+            raise ToolError("Logic Pro is not running")
+        item = executor.as_applescript_str(item_name)
         script = f"""
 tell application "Logic Pro" to activate
 tell application "System Events"
     {_PROC}
-        click menu item "{item_name}" of menu "Export" of menu item "Export" of menu "File" of menu bar 1
+        click menu item "{item}" of menu "Export" of menu item "Export" of menu "File" of menu bar 1
     end tell
 end tell
 """

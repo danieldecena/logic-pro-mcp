@@ -11,6 +11,7 @@ break. Process name is "Logic Pro Creator Studio".
 
 import executor
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
 
 _PROC = 'tell process "Logic Pro Creator Studio"'
 
@@ -56,11 +57,11 @@ def register_track_tools(mcp: FastMCP) -> None:
         Logic isn't running or no tracks are found.
         """
         if not executor.logic_is_running():
-            return "Logic Pro is not running"
+            raise ToolError("Logic Pro is not running")
         try:
             out = executor.run_applescript(_LIST_SCRIPT).strip()
         except executor.NoProjectWindowError as exc:
-            return str(exc)
+            raise ToolError(str(exc))
         if not out:
             return "No tracks found (project may be empty or UI tree differs)"
         names = [n for n in out.split("\n") if n.strip()]
@@ -108,7 +109,7 @@ end tell
         M toggles, so call logic_list_tracks to know current state if needed.
         """
         if not executor.logic_is_running():
-            return "Logic Pro is not running"
+            raise ToolError("Logic Pro is not running")
         script = f"""
 tell application "Logic Pro" to activate
 tell application "System Events"
@@ -136,7 +137,7 @@ end tell
         focus; if a text field is focused it types 's' instead.
         """
         if not executor.logic_is_running():
-            return "Logic Pro is not running"
+            raise ToolError("Logic Pro is not running")
         script = f"""
 tell application "Logic Pro" to activate
 tell application "System Events"

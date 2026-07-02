@@ -13,6 +13,7 @@ import subprocess
 
 import config
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
 
 # Generous default — demucs on a full track can take minutes.
 _DEFAULT_TIMEOUT = 1800
@@ -86,7 +87,7 @@ def register_pipeline_tools(mcp: FastMCP) -> None:
         may take several minutes per track.
         """
         if mode not in _STEM_MODES:
-            return f"Invalid mode '{mode}'. Use one of: {', '.join(_STEM_MODES)}"
+            raise ToolError(f"Invalid mode '{mode}'. Use one of: {', '.join(_STEM_MODES)}")
         out = str(config.lib_path("stems"))
         return _run_core("separate_stems", [input_path, mode, out])
 
@@ -105,7 +106,7 @@ def register_pipeline_tools(mcp: FastMCP) -> None:
         Clips land in Samples/Vocals/<source>/.
         """
         if sensitivity not in _SENSITIVITIES:
-            return f"Invalid sensitivity '{sensitivity}'. Use 'tight' or 'loose'."
+            raise ToolError(f"Invalid sensitivity '{sensitivity}'. Use 'tight' or 'loose'.")
         out = str(config.music_root() / "Samples" / "Vocals")
         return _run_core("chop_vocals", [input_path, out, sensitivity])
 
@@ -128,9 +129,9 @@ def register_pipeline_tools(mcp: FastMCP) -> None:
         while (download + demucs per track).
         """
         if stem_mode not in _STEM_MODES:
-            return f"Invalid stem_mode '{stem_mode}'. Use one of: {', '.join(_STEM_MODES)}"
+            raise ToolError(f"Invalid stem_mode '{stem_mode}'. Use one of: {', '.join(_STEM_MODES)}")
         if chop_sensitivity not in _SENSITIVITIES:
-            return f"Invalid chop_sensitivity '{chop_sensitivity}'. Use 'tight' or 'loose'."
+            raise ToolError(f"Invalid chop_sensitivity '{chop_sensitivity}'. Use 'tight' or 'loose'.")
         root = config.music_root()
         am = str(root / "Apple Music")
         stems = str(config.lib_path("stems"))

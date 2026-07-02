@@ -1,36 +1,40 @@
 import executor
 from fastmcp import FastMCP
 
+_TOGGLE_PLAYBACK = """
+tell application "Logic Pro" to activate
+tell application "System Events"
+    tell process "Logic Pro Creator Studio"
+        keystroke " "
+    end tell
+end tell
+"""
+
 
 def register_transport_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def logic_play() -> str:
-        """Toggle playback in Logic Pro (Space bar)."""
-        script = """
-tell application "Logic Pro" to activate
-tell application "System Events"
-    tell process "Logic Pro Creator Studio"
-        keystroke " "
-    end tell
-end tell
-"""
-        executor.run_applescript(script)
+        """Toggle playback in Logic Pro (Space bar).
+
+        Space is a toggle: this starts playback if stopped and stops it if
+        already playing. There is no separate non-toggling play key command.
+        """
+        executor.run_applescript(_TOGGLE_PLAYBACK)
         return "Playback toggled"
 
     @mcp.tool()
     def logic_stop() -> str:
-        """Stop playback in Logic Pro (Space bar while playing)."""
-        script = """
-tell application "Logic Pro" to activate
-tell application "System Events"
-    tell process "Logic Pro Creator Studio"
-        keystroke " "
-    end tell
-end tell
-"""
-        executor.run_applescript(script)
-        return "Stopped"
+        """Toggle playback in Logic Pro (Space bar) — intended to stop playback.
+
+        NOTE: Logic has no non-toggling stop key command, so this sends the same
+        Space toggle as logic_play. It stops playback ONLY if Logic is currently
+        playing; if playback is already stopped it will START it. Playback state
+        isn't read, so this is not idempotent — prefer logic_play for a plain
+        toggle, and use this only when you know playback is running.
+        """
+        executor.run_applescript(_TOGGLE_PLAYBACK)
+        return "Sent playback toggle (stops if playing)"
 
     @mcp.tool()
     def logic_record() -> str:

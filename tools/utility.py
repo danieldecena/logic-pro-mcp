@@ -35,11 +35,13 @@ end tell
     @mcp.tool()
     def logic_navigate_menu(menu_name: str, item_name: str) -> str:
         """Click a menu item in Logic Pro's menu bar. menu_name e.g. 'Track', item_name e.g. 'New Track...'"""
+        item = executor.as_applescript_str(item_name)
+        menu = executor.as_applescript_str(menu_name)
         script = f"""
 tell application "Logic Pro" to activate
 tell application "System Events"
     tell process "Logic Pro Creator Studio"
-        click menu item "{item_name}" of menu "{menu_name}" of menu bar 1
+        click menu item "{item}" of menu "{menu}" of menu bar 1
     end tell
 end tell
 """

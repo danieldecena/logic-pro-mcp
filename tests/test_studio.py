@@ -102,3 +102,40 @@ def test_promote_export_write_once(workspace):
     # Second promote to same final name must refuse (write-once).
     with pytest.raises(FileExistsError):
         library.promote_export(workspace, "draft1.wav", "final1.wav")
+
+
+# ---- pagination helper (pure) ----
+
+def test_paginate_first_page():
+    items = [f"item{i}" for i in range(10)]
+    page = library.paginate(items, limit=3, offset=0)
+    assert page["items"] == ["item0", "item1", "item2"]
+    assert page["total"] == 10
+    assert page["offset"] == 0
+    assert page["limit"] == 3
+    assert page["returned"] == 3
+    assert page["has_more"] is True
+
+
+def test_paginate_last_page_no_more():
+    items = [f"item{i}" for i in range(5)]
+    page = library.paginate(items, limit=10, offset=0)
+    assert page["items"] == items
+    assert page["returned"] == 5
+    assert page["has_more"] is False
+
+
+def test_paginate_offset_beyond_end():
+    items = ["a", "b", "c"]
+    page = library.paginate(items, limit=5, offset=10)
+    assert page["items"] == []
+    assert page["returned"] == 0
+    assert page["total"] == 3
+    assert page["has_more"] is False
+
+
+def test_paginate_middle_slice_has_more():
+    items = [f"item{i}" for i in range(10)]
+    page = library.paginate(items, limit=2, offset=4)
+    assert page["items"] == ["item4", "item5"]
+    assert page["has_more"] is True

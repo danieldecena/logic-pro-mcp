@@ -5,6 +5,17 @@ class NoProjectWindowError(RuntimeError):
     """Logic is running but has no open project window (e.g. the chooser is up)."""
 
 
+def as_applescript_str(value: str) -> str:
+    """Escape a Python string for safe embedding in an AppleScript double-quoted literal.
+
+    AppleScript string literals only need backslash and double-quote escaped.
+    Escape backslash first so the added escapes aren't themselves re-escaped.
+    Use for any caller-supplied value interpolated into a script (paths, menu
+    names) to prevent the script breaking or AppleScript injection.
+    """
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def run_applescript(script: str, timeout: int = 10) -> str:
     result = subprocess.run(
         ["osascript"],

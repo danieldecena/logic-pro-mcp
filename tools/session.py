@@ -4,6 +4,7 @@ from pathlib import Path
 import config
 import executor
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
 
 _TEMPO_RE = re.compile(rb"(?:tempo|bpm)\D{0,8}(\d{2,3}(?:\.\d+)?)", re.IGNORECASE)
 
@@ -18,11 +19,12 @@ def _newest_active_logicx() -> Path | None:
     return max(bundles, key=lambda p: p.stat().st_mtime)
 
 
-def _tempo_from_logicx() -> str | None:
+def _tempo_from_logicx() -> tuple[float, str] | None:
     """Best-effort tempo read from the newest Active project bundle (Logic closed).
 
     Scans the project's binary data for a plausible BPM. Approximate — the
-    transport-bar read (Logic open) is authoritative.
+    transport-bar read (Logic open) is authoritative. Returns (bpm, bundle_name)
+    or None.
     """
     bundle = _newest_active_logicx()
     if not bundle:
@@ -43,7 +45,7 @@ def _tempo_from_logicx() -> str | None:
         except ValueError:
             continue
         if 40.0 <= bpm <= 300.0:
-            return f"{bpm} (from {bundle.name}, approximate)"
+            return bpm, bundle.name
     return None
 
 _FIELD_SCRIPT = """
@@ -82,49 +84,67 @@ def _get_fields() -> list[str]:
 def register_session_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
-    def logic_get_tempo() -> str:
+    def logic_get_tempo() -> dict:
         """Return the current project BPM from Logic Pro's transport bar.
 
         Falls back to reading the newest Active .logicx project file if Logic
-        isn't running or the transport field can't be located.
+        isn't running or the transport field can't be located. Returns
+        {bpm, source, approximate} where source is 'transport' or the bundle name.
         """
         if executor.logic_is_running():
             for val in _get_fields():
                 try:
                     bpm = float(val.strip())
                     if 20.0 <= bpm <= 400.0:
-                        return str(bpm)
+                        return {"bpm": bpm, "source": "transport", "approximate": False}
                 except ValueError:
                     continue
         fallback = _tempo_from_logicx()
         if fallback:
-            return fallback
+            bpm, bundle_name = fallback
+            return {"bpm": bpm, "source": bundle_name, "approximate": True}
         if not executor.logic_is_running():
-            return "Logic Pro is not running and no readable .logicx tempo found"
-        return "Tempo field not found in transport bar"
+            raise ToolError("Logic Pro is not running and no readable .logicx tempo found")
+        raise ToolError("Tempo field not found in transport bar")
 
     @mcp.tool()
-    def logic_get_key() -> str:
-        """Return the current key signature from Logic Pro's transport bar (e.g. 'C', 'Am')."""
+    def logic_get_key() -> dict:
+        """Return the current key signature from Logic Pro's transport bar (e.g. 'C', 'Am').
+
+        Returns {key, source}.
+        """
         if not executor.logic_is_running():
-            return "Logic Pro is not running"
+            raise ToolError("Logic Pro is not running")
         fields = _get_fields()
         if not fields:
-            return "No project open or transport bar not readable"
+            raise ToolError("No project open or transport bar not readable")
         for val in fields:
             if _KEY_RE.match(val.strip()):
-                return val.strip()
-        return "Key signature field not found in transport bar"
+                return {"key": val.strip(), "source": "transport"}
+        raise ToolError("Key signature field not found in transport bar")
 
     @mcp.tool()
-    def logic_get_bar_position() -> str:
-        """Return the current playhead position as 'bar beat division tick' from Logic Pro."""
+    def logic_get_bar_position() -> dict:
+        """Return the current playhead position from Logic Pro.
+
+        Returns {position, bar, beat, division, tick, source} where position is
+        the raw 'bar beat division tick' string.
+        """
         if not executor.logic_is_running():
-            return "Logic Pro is not running"
+            raise ToolError("Logic Pro is not running")
         fields = _get_fields()
         if not fields:
-            return "No project open or transport bar not readable"
+            raise ToolError("No project open or transport bar not readable")
         for val in fields:
-            if _POS_RE.match(val.strip()):
-                return val.strip()
-        return "Bar position field not found in transport bar"
+            stripped = val.strip()
+            if _POS_RE.match(stripped):
+                bar, beat, division, tick = (int(x) for x in stripped.split())
+                return {
+                    "position": stripped,
+                    "bar": bar,
+                    "beat": beat,
+                    "division": division,
+                    "tick": tick,
+                    "source": "transport",
+                }
+        raise ToolError("Bar position field not found in transport bar")

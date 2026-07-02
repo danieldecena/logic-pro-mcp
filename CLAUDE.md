@@ -36,11 +36,11 @@ System Settings → Privacy & Security → Accessibility → add Terminal / your
 | `tools/transport.py` | play, stop, record, rewind, go_to_start, fast_forward |
 | `tools/project.py` | get_current_project, open_project (validates path), save, new_project |
 | `tools/utility.py` | undo, redo, navigate_menu, get_status |
-| `tools/session.py` | get_tempo (with .logicx fallback), get_key, get_bar_position |
+| `tools/session.py` | get_tempo (with .logicx fallback), get_key, get_bar_position — return structured dicts |
 | `tools/tracks.py` | list_tracks, add_track, mute, solo *(best-effort UI scripting)* |
 | `tools/bounce.py` | bounce *(best-effort)*, export |
 | `tools/pipeline.py` | download, separate_stems, chop_vocals, run_full — wraps `music-core.sh` |
-| `tools/library.py` | list projects/samples/stems/exports; new-from-template, archive, promote |
+| `tools/library.py` | list projects/samples/stems/exports (structured + paginated); new-from-template, archive, promote |
 | `tests/test_studio.py` | pytest: config, pipeline command-builder, library ops (temp workspace) |
 | `evals/logic_studio_eval.xml` | mcp-builder Phase-4 eval questions |
 
@@ -56,10 +56,26 @@ shell out to `<root>/lib/music-core.sh` and need `demucs`, `gamdl`/`yt-dlp`,
 - ★★ solid-but-brittle: track ops, menu navigation, session reads (UI scripting).
 - ★ best-effort: `logic_bounce` (two-dialog flow). Verify against a live session.
 
+### Conventions
+
+- **Structured output**: data-returning tools return Python types (`dict`/`list`)
+  so FastMCP derives an outputSchema + structuredContent. Applies to
+  `library_list_*` and `session.logic_get_{tempo,key,bar_position}`. Action tools
+  (play, save, mute, bounce, …) still return human-readable `str`.
+- **Pagination**: `library_list_{projects,samples,stems,exports}` take
+  `limit` (default 50) and `offset` (default 0); results include
+  `total/offset/limit/returned/has_more`. Pure helper: `library.paginate()`.
+- **Error signaling**: genuine errors (invalid args, "Logic Pro is not running"
+  where the tool can't proceed, missing files) `raise ToolError(...)`
+  (`from fastmcp.exceptions import ToolError`) so the framework flags `isError`.
+  Empty results (e.g. an empty project list) are NOT errors — they return an
+  empty structure. `logic_get_status` still returns a "not running" string since
+  reporting that state is its purpose.
+
 ## Add to Claude
 
 ```bash
-claude mcp add logic-pro -- /Users/home/Developer/projects/logic-pro-mcp/.venv/bin/python /Users/home/Developer/projects/logic-pro-mcp/server.py
+claude mcp add logic-pro -- /Users/home/Developer/logic-pro-mcp/.venv/bin/python /Users/home/Developer/logic-pro-mcp/server.py
 ```
 
 ## Key rules

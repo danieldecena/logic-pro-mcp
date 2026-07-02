@@ -1,5 +1,6 @@
 import executor
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
 
 
 def register_project_tools(mcp: FastMCP) -> None:
@@ -32,13 +33,13 @@ end tell
 
         expanded = os.path.expanduser(path)
         if not os.path.exists(expanded):
-            return f"No file at {expanded}. Pass an absolute path to a .logicx project."
+            raise ToolError(f"No file at {expanded}. Pass an absolute path to a .logicx project.")
         if not expanded.endswith(".logicx"):
-            return f"{expanded} is not a .logicx project bundle."
+            raise ToolError(f"{expanded} is not a .logicx project bundle.")
         path = expanded
         script = f"""
 tell application "Logic Pro"
-    open POSIX file "{path}"
+    open POSIX file "{executor.as_applescript_str(path)}"
 end tell
 """
         executor.run_applescript(script, timeout=30)
