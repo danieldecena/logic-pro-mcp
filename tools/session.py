@@ -100,6 +100,64 @@ def _get_fields() -> list[str]:
     return [v for v in raw.split("\n") if v.strip()]
 
 
+# The tempo/BPM readout is not always a plain text field — depending on the
+# Logic build it can be an LCD-style element showing "120.0000". Scan the whole
+# front-window element tree (like the key read) and collect every value, so we
+# can pattern-match a BPM regardless of the control's role.
+_UI_VALUES_SCRIPT = """
+tell application "System Events"
+    tell process "Logic Pro Creator Studio"
+        set AppleScript's text item delimiters to linefeed
+        set vals to {}
+        repeat with el in (entire contents of front window)
+            try
+                set v to (value of el) as string
+                if v is not "" and v is not "missing value" then set end of vals to v
+            end try
+        end repeat
+        set out to vals as string
+        set AppleScript's text item delimiters to ""
+        return out
+    end tell
+end tell
+"""
+
+# A decimal-bearing number in BPM range — the tempo LCD characteristically
+# shows trailing decimals ("120.0000"), distinctive enough to avoid colliding
+# with other numeric controls.
+_BPM_DECIMAL_RE = re.compile(r"(?<!\d)(\d{2,3}\.\d+)(?!\d)")
+
+
+def _bpm_in_range(text: str) -> float | None:
+    try:
+        bpm = float(text)
+    except ValueError:
+        return None
+    return bpm if 20.0 <= bpm <= 400.0 else None
+
+
+def _tempo_from_ui() -> float | None:
+    """Best-effort tempo read by scanning the whole element tree (Logic open)."""
+    try:
+        raw = executor.run_applescript(_UI_VALUES_SCRIPT, timeout=20)
+    except (executor.NoProjectWindowError, RuntimeError):
+        return None
+    values = [v for v in raw.split("\n") if v.strip()]
+    # 1) a standalone decimal LCD value like "120.0000" (most distinctive)
+    for v in values:
+        m = _BPM_DECIMAL_RE.search(v)
+        if m:
+            bpm = _bpm_in_range(m.group(1))
+            if bpm is not None:
+                return bpm
+    # 2) a value that is exactly an integer BPM ("120") — last resort
+    for v in values:
+        bpm = _bpm_in_range(v.strip())
+        if bpm is not None:
+            return bpm
+    return None
+
+
 def register_session_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
@@ -118,6 +176,10 @@ def register_session_tools(mcp: FastMCP) -> None:
                         return {"bpm": bpm, "source": "transport", "approximate": False}
                 except ValueError:
                     continue
+            # text-field scan missed it — scan the full element tree (LCD tempo)
+            ui_bpm = _tempo_from_ui()
+            if ui_bpm is not None:
+                return {"bpm": ui_bpm, "source": "transport", "approximate": False}
         fallback = _tempo_from_logicx()
         if fallback:
             bpm, bundle_name = fallback
