@@ -21,22 +21,37 @@ _PROC = 'tell process "Logic Pro Creator Studio"'
 _CANONICAL = ("drums.wav", "bass.wav", "other.wav", "vocals.wav")
 
 
+def _wavs_in(d: Path) -> list[str]:
+    """Stem WAVs directly in d: canonical drums/bass/other/vocals first, else all *.wav."""
+    canonical = [str(d / n) for n in _CANONICAL if (d / n).exists()]
+    if canonical:
+        return canonical
+    return sorted(str(p) for p in d.glob("*.wav"))
+
+
 def collect_stems(stems_dir: str) -> list[str]:
     """Absolute paths of the stem WAVs to import from a Stems/<model>/<track> folder.
 
     Prefers the canonical drums/bass/other/vocals.wav in that order; falls back
-    to every *.wav (sorted). Raises ToolError if the folder is missing or empty.
+    to every *.wav (sorted). If handed a model folder (no WAVs directly, but one
+    track subfolder that has them) it descends into that subfolder. Raises
+    ToolError if the folder is missing, empty, or ambiguous (multiple tracks).
     """
     d = Path(stems_dir).expanduser()
     if not d.is_dir():
         raise ToolError(f"Not a folder: {stems_dir}")
-    canonical = [str(d / n) for n in _CANONICAL if (d / n).exists()]
-    if canonical:
-        return canonical
-    wavs = sorted(str(p) for p in d.glob("*.wav"))
-    if not wavs:
-        raise ToolError(f"No .wav files in {stems_dir}")
-    return wavs
+    here = _wavs_in(d)
+    if here:
+        return here
+    subdirs = [sub for sub in sorted(d.iterdir()) if sub.is_dir() and _wavs_in(sub)]
+    if len(subdirs) == 1:
+        return _wavs_in(subdirs[0])
+    if len(subdirs) > 1:
+        names = ", ".join(s.name for s in subdirs)
+        raise ToolError(
+            f"{stems_dir} holds multiple track folders ({names}) — pass one."
+        )
+    raise ToolError(f"No .wav files in {stems_dir}")
 
 
 def _ensure_logic_running(timeout: float = 30.0) -> None:

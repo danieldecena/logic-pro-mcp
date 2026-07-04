@@ -189,3 +189,22 @@ def test_build_cli_defaults():
     import build_project
     ns = build_project.parse_args(["/x/Stems/htdemucs/Song"])
     assert ns.tempo is None and ns.key is None
+
+
+def test_collect_stems_descends_single_track(tmp_path):
+    model = tmp_path / "htdemucs_6s"
+    track = model / "Song"
+    track.mkdir(parents=True)
+    for n in ("drums.wav", "bass.wav", "other.wav", "vocals.wav"):
+        (track / n).write_bytes(b"RIFF")
+    got = build.collect_stems(str(model))
+    assert [Path(p).name for p in got] == ["drums.wav", "bass.wav", "other.wav", "vocals.wav"]
+
+
+def test_collect_stems_ambiguous_multiple_tracks_raises(tmp_path):
+    model = tmp_path / "htdemucs_6s"
+    for t in ("SongA", "SongB"):
+        (model / t).mkdir(parents=True)
+        (model / t / "vocals.wav").write_bytes(b"RIFF")
+    with pytest.raises(ToolError):
+        build.collect_stems(str(model))
