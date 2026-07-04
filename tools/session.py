@@ -101,9 +101,10 @@ def _get_fields() -> list[str]:
 
 
 # The tempo/BPM readout is not always a plain text field — depending on the
-# Logic build it can be an LCD-style element showing "120.0000". Scan the whole
-# front-window element tree (like the key read) and collect every value, so we
-# can pattern-match a BPM regardless of the control's role.
+# Logic build it can be an LCD-style element that exposes the number via its
+# value, title, OR description rather than a text-field value. Scan the whole
+# front-window element tree (like the key read) and collect all three attributes
+# from every element, so we can pattern-match a BPM regardless of where it lives.
 _UI_VALUES_SCRIPT = """
 tell application "System Events"
     tell process "Logic Pro Creator Studio"
@@ -113,6 +114,14 @@ tell application "System Events"
             try
                 set v to (value of el) as string
                 if v is not "" and v is not "missing value" then set end of vals to v
+            end try
+            try
+                set t to (title of el) as string
+                if t is not "" and t is not "missing value" then set end of vals to t
+            end try
+            try
+                set d to (description of el) as string
+                if d is not "" and d is not "missing value" then set end of vals to d
             end try
         end repeat
         set out to vals as string
@@ -143,18 +152,17 @@ def _tempo_from_ui() -> float | None:
     except (executor.NoProjectWindowError, RuntimeError):
         return None
     values = [v for v in raw.split("\n") if v.strip()]
-    # 1) a standalone decimal LCD value like "120.0000" (most distinctive)
+    # Match a decimal-bearing BPM ("120.0000") anywhere in the collected
+    # value/title/description strings — distinctive enough to avoid colliding
+    # with bare integers like a "100" pan/volume readout. If the build shows the
+    # tempo without decimals we return None (caller reports not-found) rather
+    # than risk returning a wrong number.
     for v in values:
         m = _BPM_DECIMAL_RE.search(v)
         if m:
             bpm = _bpm_in_range(m.group(1))
             if bpm is not None:
                 return bpm
-    # 2) a value that is exactly an integer BPM ("120") — last resort
-    for v in values:
-        bpm = _bpm_in_range(v.strip())
-        if bpm is not None:
-            return bpm
     return None
 
 
