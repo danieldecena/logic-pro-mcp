@@ -139,3 +139,53 @@ def test_paginate_middle_slice_has_more():
     page = library.paginate(items, limit=2, offset=4)
     assert page["items"] == ["item4", "item5"]
     assert page["has_more"] is True
+
+
+# ---- build: stem collection (pure) ----
+
+from fastmcp.exceptions import ToolError
+from tools import build
+
+
+def test_collect_stems_canonical_order(tmp_path):
+    for n in ("vocals.wav", "drums.wav", "bass.wav", "other.wav"):
+        (tmp_path / n).write_bytes(b"RIFF")
+    got = build.collect_stems(str(tmp_path))
+    assert [Path(p).name for p in got] == ["drums.wav", "bass.wav", "other.wav", "vocals.wav"]
+
+
+def test_collect_stems_fallback_all_wavs(tmp_path):
+    (tmp_path / "guitar.wav").write_bytes(b"RIFF")
+    (tmp_path / "piano.wav").write_bytes(b"RIFF")
+    got = build.collect_stems(str(tmp_path))
+    assert sorted(Path(p).name for p in got) == ["guitar.wav", "piano.wav"]
+
+
+def test_collect_stems_no_wavs_raises(tmp_path):
+    with pytest.raises(ToolError):
+        build.collect_stems(str(tmp_path))
+
+
+def test_collect_stems_missing_dir_raises(tmp_path):
+    with pytest.raises(ToolError):
+        build.collect_stems(str(tmp_path / "nope"))
+
+
+def test_build_tool_registers():
+    from fastmcp import FastMCP
+    m = FastMCP("t")
+    build.register_build_tools(m)  # must not raise
+
+
+def test_build_cli_parses_args():
+    import build_project
+    ns = build_project.parse_args(["/x/Stems/htdemucs/Song", "--tempo", "161.5", "--key", "Am"])
+    assert ns.stems_dir == "/x/Stems/htdemucs/Song"
+    assert ns.tempo == 161.5
+    assert ns.key == "Am"
+
+
+def test_build_cli_defaults():
+    import build_project
+    ns = build_project.parse_args(["/x/Stems/htdemucs/Song"])
+    assert ns.tempo is None and ns.key is None

@@ -8,6 +8,7 @@ from tools.tracks import register_track_tools
 from tools.bounce import register_bounce_tools
 from tools.pipeline import register_pipeline_tools
 from tools.library import register_library_tools
+from tools.build import register_build_tools
 
 mcp = FastMCP("logic-pro")
 
@@ -19,6 +20,7 @@ register_track_tools(mcp)
 register_bounce_tools(mcp)
 register_pipeline_tools(mcp)
 register_library_tools(mcp)
+register_build_tools(mcp)
 
 if __name__ == "__main__":
     mcp.run()
