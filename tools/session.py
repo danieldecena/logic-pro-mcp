@@ -48,6 +48,7 @@ def _tempo_from_logicx() -> tuple[float, str] | None:
             return bpm, bundle.name
     return None
 
+
 _FIELD_SCRIPT = """
 tell application "System Events"
     tell process "Logic Pro Creator Studio"
@@ -62,9 +63,9 @@ tell application "System Events"
                 end if
             end try
         end repeat
-        set result to vals as string
+        set joined to vals as string
         set AppleScript's text item delimiters to ""
-        return result
+        return joined
     end tell
 end tell
 """
@@ -193,7 +194,9 @@ def register_session_tools(mcp: FastMCP) -> None:
             bpm, bundle_name = fallback
             return {"bpm": bpm, "source": bundle_name, "approximate": True}
         if not executor.logic_is_running():
-            raise ToolError("Logic Pro is not running and no readable .logicx tempo found")
+            raise ToolError(
+                "Logic Pro is not running and no readable .logicx tempo found"
+            )
         raise ToolError("Tempo field not found in transport bar")
 
     @mcp.tool()
