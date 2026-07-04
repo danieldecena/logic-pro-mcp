@@ -135,14 +135,46 @@ end tell
     executor.run_applescript(script, timeout=30)
 
 
+def _import_midi(midi_path: str) -> None:
+    """Drive File > Import > MIDI File to add a MIDI file as a software-instrument
+    track. Best-effort; Logic creates the instrument track(s) itself."""
+    path = executor.as_applescript_str(str(Path(midi_path).expanduser()))
+    script = f"""
+tell application "Logic Pro" to activate
+tell application "System Events"
+    {_PROC}
+        key code 36
+        delay 0.3
+        click menu item "MIDI File..." of menu "Import" of menu item "Import" of menu "File" of menu bar 1
+        delay 1.0
+        keystroke "g" using {{command down, shift down}}
+        delay 0.5
+        keystroke "{path}"
+        delay 0.3
+        key code 36
+        delay 0.6
+        key code 36
+        delay 1.2
+        key code 36
+    end tell
+end tell
+"""
+    executor.run_applescript(script, timeout=30)
+
+
 def build_project_with_stems(
-    stems_dir: str, tempo: float | None = None, key: str | None = None
+    stems_dir: str,
+    tempo: float | None = None,
+    key: str | None = None,
+    midi: str | None = None,
 ) -> str:
     """Create a new Logic project with the stems in stems_dir as audio tracks.
 
     Best-effort UI scripting: launches Logic if needed, opens an empty project,
-    and imports the stems in one dialog. tempo/key are reported for manual entry
-    (v1 does not set them). Returns a summary string.
+    and imports the stems in one dialog. If `midi` is given (e.g. a transcribed
+    bass line), it is also imported as a software-instrument track so it can be
+    re-voiced. tempo/key are reported for manual entry (v1 does not set them).
+    Returns a summary string.
     """
     stems = collect_stems(stems_dir)
     _ensure_logic_running()
@@ -154,6 +186,12 @@ def build_project_with_stems(
         "Verify the tracks appear at bar 1; if the import sheet differed, re-run "
         "or complete it in Logic.",
     ]
+    if midi and Path(midi).expanduser().is_file():
+        _import_midi(midi)
+        lines.append(
+            f"Also imported {Path(midi).name} as a software-instrument track — "
+            "swap its instrument to re-voice the bass."
+        )
     if tempo is not None:
         lines.append(f"Set the project tempo to {tempo} (not auto-set in v1).")
     if key:
@@ -173,11 +211,15 @@ def register_build_tools(mcp: FastMCP) -> None:
         }
     )
     def logic_new_project_with_stems(
-        stems_dir: str, tempo: float | None = None, key: str | None = None
+        stems_dir: str,
+        tempo: float | None = None,
+        key: str | None = None,
+        midi: str | None = None,
     ) -> str:
         """Create a new Logic Pro project with a folder of stems loaded as tracks.
 
         stems_dir is a Stems/<model>/<track> folder. Best-effort UI scripting;
-        Logic is launched if not already open. tempo/key are reported, not set.
+        Logic is launched if not already open. If `midi` is a MIDI file it is
+        also imported as a software-instrument track. tempo/key are reported.
         """
-        return build_project_with_stems(stems_dir, tempo, key)
+        return build_project_with_stems(stems_dir, tempo, key, midi)

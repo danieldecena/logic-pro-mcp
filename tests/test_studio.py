@@ -208,3 +208,22 @@ def test_collect_stems_ambiguous_multiple_tracks_raises(tmp_path):
         (model / t / "vocals.wav").write_bytes(b"RIFF")
     with pytest.raises(ToolError):
         build.collect_stems(str(model))
+
+
+def test_build_cli_parses_midi():
+    import build_project
+    ns = build_project.parse_args(["/x/Stems/htdemucs/Song", "--midi", "/x/bass.mid"])
+    assert ns.midi == "/x/bass.mid"
+
+
+def test_build_cli_midi_default_none():
+    import build_project
+    ns = build_project.parse_args(["/x/Stems/htdemucs/Song"])
+    assert ns.midi is None
+
+
+def test_build_fn_accepts_midi_kwarg():
+    import inspect
+    from tools import build
+    params = inspect.signature(build.build_project_with_stems).parameters
+    assert "midi" in params and params["midi"].default is None

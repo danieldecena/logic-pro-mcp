@@ -2,7 +2,7 @@
 """CLI wrapper: build a new Logic project from a stems folder.
 
 Invoked by the music toolkit menu so the shell does not need an MCP client.
-Usage: build_project.py <stems_dir> [--tempo BPM] [--key KEY]
+Usage: build_project.py <stems_dir> [--tempo BPM] [--key KEY] [--midi FILE]
 """
 
 import argparse
@@ -19,13 +19,14 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     ap.add_argument("stems_dir")
     ap.add_argument("--tempo", type=float, default=None)
     ap.add_argument("--key", default=None)
+    ap.add_argument("--midi", default=None)
     return ap.parse_args(argv)
 
 
 def main(argv: list[str]) -> int:
     ns = parse_args(argv)
     try:
-        print(build_project_with_stems(ns.stems_dir, ns.tempo, ns.key))
+        print(build_project_with_stems(ns.stems_dir, ns.tempo, ns.key, ns.midi))
     except ToolError as exc:
         print(f"build_project: {exc}", file=sys.stderr)
         return 1
