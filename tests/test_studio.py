@@ -227,3 +227,31 @@ def test_build_fn_accepts_midi_kwarg():
     from tools import build
     params = inspect.signature(build.build_project_with_stems).parameters
     assert "midi" in params and params["midi"].default is None
+
+
+# ---- track selection script builder (pure) ----
+
+from tools import tracks
+
+
+def test_select_track_script_by_name():
+    s = tracks._select_track_script(name="Drums")
+    assert 'if v is equal to "Drums" then' in s
+    assert "click p1" in s
+    assert '"selected:"' in s
+    assert "notfound" in s
+
+
+def test_select_track_script_by_index():
+    s = tracks._select_track_script(index=3)
+    assert "if idx is equal to 3 then" in s
+
+
+def test_select_track_script_escapes_quotes():
+    s = tracks._select_track_script(name='My "Lead"')
+    assert '\\"Lead\\"' in s
+
+
+def test_select_track_script_requires_arg():
+    with pytest.raises(ValueError):
+        tracks._select_track_script()

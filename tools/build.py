@@ -162,6 +162,74 @@ end tell
     executor.run_applescript(script, timeout=30)
 
 
+def _set_tempo(tempo: float) -> None:
+    """Set project tempo via UI scripting on the transport text field."""
+    script = f"""
+tell application "System Events"
+    tell process "Logic Pro Creator Studio"
+        repeat with f in text fields of front window
+            try
+                set val to value of f
+                set numVal to val as number
+                if numVal >= 20 and numVal <= 400 then
+                    set value of f to "{tempo}"
+                    keystroke return
+                    exit repeat
+                end if
+            end try
+        end repeat
+    end tell
+end tell
+"""
+    try:
+        executor.run_applescript(script, timeout=10)
+    except Exception as exc:
+        print(f"Warning: Failed to set tempo: {exc}")
+
+
+def _set_key(key: str) -> None:
+    """Set project key signature (e.g. 'C Major', 'A Minor') via AXPopUpButton click."""
+    key_clean = key.strip()
+    if key_clean.endswith("m"):
+        root = key_clean[:-1]
+        mode = "Minor"
+    elif "min" in key_clean.lower():
+        root = key_clean.lower().replace("min", "").strip()
+        mode = "Minor"
+    else:
+        root = key_clean.lower().replace("maj", "").strip()
+        mode = "Major"
+        
+    root_formatted = root.upper()
+    target_key = f"{root_formatted} {mode}"
+    
+    script = f"""
+tell application "System Events"
+    tell process "Logic Pro Creator Studio"
+        repeat with el in (entire contents of front window)
+            try
+                if role of el is "AXPopUpButton" then
+                    set v to (value of el) as string
+                    if v contains "Major" or v contains "Minor" then
+                        click el
+                        delay 0.5
+                        keystroke "{target_key}"
+                        delay 0.3
+                        keystroke return
+                        exit repeat
+                    end if
+                end if
+            end try
+        end repeat
+    end tell
+end tell
+"""
+    try:
+        executor.run_applescript(script, timeout=15)
+    except Exception as exc:
+        print(f"Warning: Failed to set key: {exc}")
+
+
 def build_project_with_stems(
     stems_dir: str,
     tempo: float | None = None,
@@ -173,12 +241,16 @@ def build_project_with_stems(
     Best-effort UI scripting: launches Logic if needed, opens an empty project,
     and imports the stems in one dialog. If `midi` is given (e.g. a transcribed
     bass line), it is also imported as a software-instrument track so it can be
-    re-voiced. tempo/key are reported for manual entry (v1 does not set them).
+    re-voiced. tempo/key are set if provided.
     Returns a summary string.
     """
     stems = collect_stems(stems_dir)
     _ensure_logic_running()
     _new_empty_project()
+    if tempo is not None:
+        _set_tempo(tempo)
+    if key:
+        _set_key(key)
     _import_stems(stems_dir)
     names = ", ".join(Path(s).name for s in stems)
     lines = [
@@ -193,9 +265,9 @@ def build_project_with_stems(
             "swap its instrument to re-voice the bass."
         )
     if tempo is not None:
-        lines.append(f"Set the project tempo to {tempo} (not auto-set in v1).")
+        lines.append(f"Set the project tempo to {tempo}.")
     if key:
-        lines.append(f"Analyzed key: {key} (set manually if you want it labeled).")
+        lines.append(f"Set project key signature to {key}.")
     lines.append("Save with Cmd+S when it looks right.")
     return " ".join(lines)
 
