@@ -14,9 +14,11 @@ import time
 from pathlib import Path
 
 import executor
+from config import LOGIC_APP_NAME
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
+_APP = LOGIC_APP_NAME
 _PROC = 'tell process "Logic Pro Creator Studio"'
 _CANONICAL = ("drums.wav", "bass.wav", "other.wav", "vocals.wav")
 
@@ -58,13 +60,19 @@ def _ensure_logic_running(timeout: float = 30.0) -> None:
     """Launch Logic Pro if needed and wait until System Events sees it."""
     if executor.logic_is_running():
         return
-    subprocess.run(["open", "-a", "Logic Pro"], check=False)
+    launch = subprocess.run(["open", "-a", _APP], capture_output=True, text=True)
+    if launch.returncode != 0:
+        raise ToolError(
+            f"Could not launch {_APP!r} "
+            f"({launch.stderr.strip() or 'open failed'}) — "
+            "open Logic manually, or set LOGIC_APP_NAME to your app's name, then retry."
+        )
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if executor.logic_is_running():
             return
         time.sleep(1.0)
-    raise ToolError("Logic Pro did not start within 30s — open it and retry.")
+    raise ToolError(f"{_APP} did not start within {int(timeout)}s — open it and retry.")
 
 
 def _new_empty_project() -> None:
@@ -74,7 +82,7 @@ def _new_empty_project() -> None:
     with `entire contents of front window` and update the click target.
     """
     script = f"""
-tell application "Logic Pro" to activate
+tell application "{_APP}" to activate
 tell application "System Events"
     {_PROC}
         keystroke "n" using {{command down}}
@@ -109,7 +117,7 @@ def _import_stems(stems_dir: str) -> None:
     stems_dir to new tracks at the playhead."""
     folder = executor.as_applescript_str(str(Path(stems_dir).expanduser()))
     script = f"""
-tell application "Logic Pro" to activate
+tell application "{_APP}" to activate
 tell application "System Events"
     {_PROC}
         key code 36
@@ -140,7 +148,7 @@ def _import_midi(midi_path: str) -> None:
     track. Best-effort; Logic creates the instrument track(s) itself."""
     path = executor.as_applescript_str(str(Path(midi_path).expanduser()))
     script = f"""
-tell application "Logic Pro" to activate
+tell application "{_APP}" to activate
 tell application "System Events"
     {_PROC}
         key code 36
@@ -199,10 +207,10 @@ def _set_key(key: str) -> None:
     else:
         root = key_clean.lower().replace("maj", "").strip()
         mode = "Major"
-        
+
     root_formatted = root.upper()
     target_key = f"{root_formatted} {mode}"
-    
+
     script = f"""
 tell application "System Events"
     tell process "Logic Pro Creator Studio"

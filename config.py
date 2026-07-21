@@ -13,6 +13,11 @@ _DEFAULT_ROOT = Path.home() / "Developer" / "music"
 
 LOGIC_PROCESS_NAME = "Logic Pro Creator Studio"
 
+# The macOS application name used to launch/activate Logic. On this machine the
+# app is "Logic Pro Creator Studio.app", not "Logic Pro" — override with
+# LOGIC_APP_NAME for a stock install.
+LOGIC_APP_NAME = os.environ.get("LOGIC_APP_NAME", "Logic Pro Creator Studio")
+
 
 def music_root() -> Path:
     """Absolute path to the music workspace root."""
