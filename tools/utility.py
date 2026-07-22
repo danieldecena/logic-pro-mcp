@@ -3,37 +3,71 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
 
+# Two AppleScript traps this script exists to avoid, both found against Logic 12.3:
+#
+#   1. `entire contents of front window` returns ZERO elements for Logic, even
+#      when it is frontmost, while `every UI element` returns them normally. Any
+#      dump built on `entire contents` silently yields "" and looks like an empty
+#      window rather than a broken query.
+#   2. Storing UI element references in a list and re-reading them after mutating
+#      that list invalidates them (AppleEvent handler failed, -10000). So the walk
+#      recurses through a handler parameter instead of a worklist.
+#
+# Indentation encodes depth. Capped so a deep hierarchy can't hang the tool.
 _UI_DUMP_SCRIPT = """
+property nodeCount : 0
+property maxNodes : 600
+
+on dumpEl(el, d, maxD)
+    if nodeCount > maxNodes then return ""
+    set nodeCount to nodeCount + 1
+    set out to ""
+    tell application "System Events"
+        set pad to ""
+        repeat d times
+            set pad to pad & "  "
+        end repeat
+        set info to pad
+        try
+            set info to info & ((role of el) as string)
+        on error
+            set info to info & "?"
+        end try
+        try
+            set nm to (name of el) as string
+            if nm is not "missing value" and nm is not "" then set info to info & " | Name: " & nm
+        end try
+        try
+            set ds to (description of el) as string
+            if ds is not "missing value" and ds is not "" then set info to info & " | Desc: " & ds
+        end try
+        try
+            set vl to (value of el) as string
+            if vl is not "missing value" and vl is not "" then
+                if (count of vl) > 60 then set vl to (text 1 thru 60 of vl) & "..."
+                set info to info & " | Val: " & vl
+            end if
+        end try
+        set out to out & info & linefeed
+        if d < maxD then
+            try
+                set kids to every UI element of el
+                repeat with k in kids
+                    set out to out & my dumpEl(contents of k, d + 1, maxD)
+                end repeat
+            end try
+        end if
+    end tell
+    return out
+end dumpEl
+
+set nodeCount to 0
 tell application "System Events"
     tell process "Logic Pro Creator Studio"
-        set AppleScript's text item delimiters to linefeed
-        set elList to {}
-        try
-            repeat with el in (entire contents of front window)
-                try
-                    set r to (role of el) as string
-                    set n to (name of el) as string
-                    set t to (title of el) as string
-                    set d to (description of el) as string
-                    set v to (value of el) as string
-                    
-                    set info to "Role: " & r
-                    if n is not "" and n is not "missing value" then set info to info & " | Name: " & n
-                    if t is not "" and t is not "missing value" then set info to info & " | Title: " & t
-                    if d is not "" and d is not "missing value" then set info to info & " | Desc: " & d
-                    if v is not "" and v is not "missing value" then set info to info & " | Val: " & v
-                    
-                    set end of elList to info
-                end try
-            end repeat
-        on error err
-            return "Error listing contents: " & err
-        end try
-        set out to elList as string
-        set AppleScript's text item delimiters to ""
-        return out
+        set w to front window
     end tell
 end tell
+return my dumpEl(w, 0, 5)
 """
 
 
