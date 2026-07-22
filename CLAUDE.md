@@ -83,4 +83,4 @@ claude mcp add -s user logic-pro -- /Users/home/Developer/music/logic-pro-mcp/.v
 - All AppleScript variable names must NOT start with `_`
 - Always `tell application "Logic Pro" to activate` before sending keystrokes
 - Logic Pro has no `.sdef` — never use `tell application "Logic Pro" to play`
-- See `~/.claude/skills/logic-pro-mcp/references/automation.md` for recipes
+- See `.claude/skills/logic-pro-mcp/references/automation.md` for recipes
