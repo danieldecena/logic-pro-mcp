@@ -38,6 +38,10 @@ on dumpEl(el, d, maxD)
             if nm is not "missing value" and nm is not "" then set info to info & " | Name: " & nm
         end try
         try
+            set tt to (title of el) as string
+            if tt is not "missing value" and tt is not "" then set info to info & " | Title: " & tt
+        end try
+        try
             set ds to (description of el) as string
             if ds is not "missing value" and ds is not "" then set info to info & " | Desc: " & ds
         end try
