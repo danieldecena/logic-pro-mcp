@@ -70,27 +70,36 @@ tell application "System Events"
 end tell
 """
 
-_KEY_RE = re.compile(r"^[A-Ga-g][b#]?\s*(m|maj|min|major|minor)?$", re.IGNORECASE)
 _POS_RE = re.compile(r"^\d+\s+\d+\s+\d+\s+\d+$")
 
-# The control-bar key signature is an AXPopUpButton (value like "C Major"),
-# not a text field — scan the window's elements for it.
-_KEY_POPUP_SCRIPT = f"""
+
+def _control_bar_read_script(kind: str, selector: str) -> str:
+    """Build an AppleScript that reads one Control Bar element's value.
+
+    Pure (no side effects) so it can be unit-tested. `kind` is the element role
+    word ("slider" or "pop up button"); `selector` is the trailing clause that
+    picks it (e.g. 'whose description is "Tempo"'). Scopes straight to the inner
+    Control Bar group — no `entire contents` full-tree walk, which times out on
+    Logic — and returns the element's value as a string, or "" if it is absent.
+    """
+    return f"""
 tell application "System Events"
     {executor.TELL_PROC}
-        set ec to entire contents of front window
-        repeat with el in ec
-            try
-                if role of el is "AXPopUpButton" then
-                    set v to (value of el) as string
-                    if v contains "Major" or v contains "Minor" then return v
-                end if
-            end try
-        end repeat
-        return ""
+        try
+            set icb to first group of (first group of window 1 whose description is "Control Bar") whose description is "Control Bar"
+            return (value of (first {kind} of icb {selector})) as string
+        on error
+            return ""
+        end try
     end tell
 end tell
 """
+
+
+_TEMPO_SCRIPT = _control_bar_read_script("slider", 'whose description is "Tempo"')
+_KEY_SCRIPT = _control_bar_read_script(
+    "pop up button", 'whose description is "Key Signature"'
+)
 
 
 def _get_fields() -> list[str]:
@@ -101,43 +110,6 @@ def _get_fields() -> list[str]:
     return [v for v in raw.split("\n") if v.strip()]
 
 
-# The tempo/BPM readout is not always a plain text field — depending on the
-# Logic build it can be an LCD-style element that exposes the number via its
-# value, title, OR description rather than a text-field value. Scan the whole
-# front-window element tree (like the key read) and collect all three attributes
-# from every element, so we can pattern-match a BPM regardless of where it lives.
-_UI_VALUES_SCRIPT = f"""
-tell application "System Events"
-    {executor.TELL_PROC}
-        set AppleScript's text item delimiters to linefeed
-        set vals to {{}}
-        repeat with el in (entire contents of front window)
-            try
-                set v to (value of el) as string
-                if v is not "" and v is not "missing value" then set end of vals to v
-            end try
-            try
-                set t to (title of el) as string
-                if t is not "" and t is not "missing value" then set end of vals to t
-            end try
-            try
-                set d to (description of el) as string
-                if d is not "" and d is not "missing value" then set end of vals to d
-            end try
-        end repeat
-        set out to vals as string
-        set AppleScript's text item delimiters to ""
-        return out
-    end tell
-end tell
-"""
-
-# A decimal-bearing number in BPM range — the tempo LCD characteristically
-# shows trailing decimals ("120.0000"), distinctive enough to avoid colliding
-# with other numeric controls.
-_BPM_DECIMAL_RE = re.compile(r"(?<!\d)(\d{2,3}\.\d+)(?!\d)")
-
-
 def _bpm_in_range(text: str) -> float | None:
     try:
         bpm = float(text)
@@ -146,49 +118,25 @@ def _bpm_in_range(text: str) -> float | None:
     return bpm if 20.0 <= bpm <= 400.0 else None
 
 
-def _tempo_from_ui() -> float | None:
-    """Best-effort tempo read by scanning the whole element tree (Logic open)."""
-    try:
-        raw = executor.run_applescript(_UI_VALUES_SCRIPT, timeout=20)
-    except (executor.NoProjectWindowError, RuntimeError):
-        return None
-    values = [v for v in raw.split("\n") if v.strip()]
-    # Match a decimal-bearing BPM ("120.0000") anywhere in the collected
-    # value/title/description strings — distinctive enough to avoid colliding
-    # with bare integers like a "100" pan/volume readout. If the build shows the
-    # tempo without decimals we return None (caller reports not-found) rather
-    # than risk returning a wrong number.
-    for v in values:
-        m = _BPM_DECIMAL_RE.search(v)
-        if m:
-            bpm = _bpm_in_range(m.group(1))
-            if bpm is not None:
-                return bpm
-    return None
-
-
 def register_session_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     def logic_get_tempo() -> dict:
         """Return the current project BPM from Logic Pro's transport bar.
 
+        Reads the tempo AXSlider in the Control Bar (scoped, no full-tree walk).
         Falls back to reading the newest Active .logicx project file if Logic
-        isn't running or the transport field can't be located. Returns
+        isn't running or the transport control can't be located. Returns
         {bpm, source, approximate} where source is 'transport' or the bundle name.
         """
         if executor.logic_is_running():
-            for val in _get_fields():
-                try:
-                    bpm = float(val.strip())
-                    if 20.0 <= bpm <= 400.0:
-                        return {"bpm": bpm, "source": "transport", "approximate": False}
-                except ValueError:
-                    continue
-            # text-field scan missed it — scan the full element tree (LCD tempo)
-            ui_bpm = _tempo_from_ui()
-            if ui_bpm is not None:
-                return {"bpm": ui_bpm, "source": "transport", "approximate": False}
+            try:
+                raw = executor.run_applescript(_TEMPO_SCRIPT)
+            except executor.NoProjectWindowError:
+                raw = ""
+            bpm = _bpm_in_range(raw.strip())
+            if bpm is not None:
+                return {"bpm": bpm, "source": "transport", "approximate": False}
         fallback = _tempo_from_logicx()
         if fallback:
             bpm, bundle_name = fallback
@@ -208,7 +156,7 @@ def register_session_tools(mcp: FastMCP) -> None:
         if not executor.logic_is_running():
             raise ToolError("Logic Pro is not running")
         try:
-            val = executor.run_applescript(_KEY_POPUP_SCRIPT).strip()
+            val = executor.run_applescript(_KEY_SCRIPT).strip()
         except executor.NoProjectWindowError:
             raise ToolError("No project open")
         if val:

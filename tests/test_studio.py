@@ -18,6 +18,7 @@ from tools import library, pipeline
 
 # ---- config ----
 
+
 def test_music_root_env_override(monkeypatch, tmp_path):
     monkeypatch.setenv("LOGIC_STUDIO_MUSIC_ROOT", str(tmp_path))
     assert config.music_root() == tmp_path.resolve()
@@ -30,9 +31,12 @@ def test_core_lib_path(monkeypatch, tmp_path):
 
 # ---- pipeline command builder (pure) ----
 
+
 def test_build_core_command_quotes_args(monkeypatch, tmp_path):
     monkeypatch.setenv("LOGIC_STUDIO_MUSIC_ROOT", str(tmp_path))
-    cmd = pipeline.build_core_command("separate_stems", ["/a b/x.m4a", "instrumental", "/out"])
+    cmd = pipeline.build_core_command(
+        "separate_stems", ["/a b/x.m4a", "instrumental", "/out"]
+    )
     assert cmd[0] == "zsh" and cmd[1] == "-c"
     assert "separate_stems" in cmd[2]
     assert "'/a b/x.m4a'" in cmd[2]  # space-containing path is quoted
@@ -41,18 +45,26 @@ def test_build_core_command_quotes_args(monkeypatch, tmp_path):
 
 def test_build_core_command_handles_special_chars(monkeypatch, tmp_path):
     monkeypatch.setenv("LOGIC_STUDIO_MUSIC_ROOT", str(tmp_path))
-    cmd = pipeline.build_core_command("download_url", ["https://x.com/a;rm -rf /", "/out"])
+    cmd = pipeline.build_core_command(
+        "download_url", ["https://x.com/a;rm -rf /", "/out"]
+    )
     # The malicious-looking arg must be single-quoted, not interpreted.
     assert "'https://x.com/a;rm -rf /'" in cmd[2]
 
 
 # ---- library fixtures ----
 
+
 @pytest.fixture
 def workspace(tmp_path):
     for sub in (
-        "Projects/Active", "Projects/Archive", "Projects/Templates",
-        "Samples/Loops", "Samples/Chops", "Exports/Drafts", "Exports/Finals",
+        "Projects/Active",
+        "Projects/Archive",
+        "Projects/Templates",
+        "Samples/Loops",
+        "Samples/Chops",
+        "Exports/Drafts",
+        "Exports/Finals",
         "Stems/htdemucs/Song A",
     ):
         (tmp_path / sub).mkdir(parents=True, exist_ok=True)
@@ -106,6 +118,7 @@ def test_promote_export_write_once(workspace):
 
 # ---- pagination helper (pure) ----
 
+
 def test_paginate_first_page():
     items = [f"item{i}" for i in range(10)]
     page = library.paginate(items, limit=3, offset=0)
@@ -151,7 +164,12 @@ def test_collect_stems_canonical_order(tmp_path):
     for n in ("vocals.wav", "drums.wav", "bass.wav", "other.wav"):
         (tmp_path / n).write_bytes(b"RIFF")
     got = build.collect_stems(str(tmp_path))
-    assert [Path(p).name for p in got] == ["drums.wav", "bass.wav", "other.wav", "vocals.wav"]
+    assert [Path(p).name for p in got] == [
+        "drums.wav",
+        "bass.wav",
+        "other.wav",
+        "vocals.wav",
+    ]
 
 
 def test_collect_stems_fallback_all_wavs(tmp_path):
@@ -173,13 +191,17 @@ def test_collect_stems_missing_dir_raises(tmp_path):
 
 def test_build_tool_registers():
     from fastmcp import FastMCP
+
     m = FastMCP("t")
     build.register_build_tools(m)  # must not raise
 
 
 def test_build_cli_parses_args():
     import build_project
-    ns = build_project.parse_args(["/x/Stems/htdemucs/Song", "--tempo", "161.5", "--key", "Am"])
+
+    ns = build_project.parse_args(
+        ["/x/Stems/htdemucs/Song", "--tempo", "161.5", "--key", "Am"]
+    )
     assert ns.stems_dir == "/x/Stems/htdemucs/Song"
     assert ns.tempo == 161.5
     assert ns.key == "Am"
@@ -187,6 +209,7 @@ def test_build_cli_parses_args():
 
 def test_build_cli_defaults():
     import build_project
+
     ns = build_project.parse_args(["/x/Stems/htdemucs/Song"])
     assert ns.tempo is None and ns.key is None
 
@@ -198,7 +221,12 @@ def test_collect_stems_descends_single_track(tmp_path):
     for n in ("drums.wav", "bass.wav", "other.wav", "vocals.wav"):
         (track / n).write_bytes(b"RIFF")
     got = build.collect_stems(str(model))
-    assert [Path(p).name for p in got] == ["drums.wav", "bass.wav", "other.wav", "vocals.wav"]
+    assert [Path(p).name for p in got] == [
+        "drums.wav",
+        "bass.wav",
+        "other.wav",
+        "vocals.wav",
+    ]
 
 
 def test_collect_stems_ambiguous_multiple_tracks_raises(tmp_path):
@@ -212,12 +240,14 @@ def test_collect_stems_ambiguous_multiple_tracks_raises(tmp_path):
 
 def test_build_cli_parses_midi():
     import build_project
+
     ns = build_project.parse_args(["/x/Stems/htdemucs/Song", "--midi", "/x/bass.mid"])
     assert ns.midi == "/x/bass.mid"
 
 
 def test_build_cli_midi_default_none():
     import build_project
+
     ns = build_project.parse_args(["/x/Stems/htdemucs/Song"])
     assert ns.midi is None
 
@@ -225,6 +255,7 @@ def test_build_cli_midi_default_none():
 def test_build_fn_accepts_midi_kwarg():
     import inspect
     from tools import build
+
     params = inspect.signature(build.build_project_with_stems).parameters
     assert "midi" in params and params["midi"].default is None
 
@@ -255,3 +286,33 @@ def test_select_track_script_escapes_quotes():
 def test_select_track_script_requires_arg():
     with pytest.raises(ValueError):
         tracks._select_track_script()
+
+
+# ---- control-bar session read script builder (pure) ----
+
+import executor
+from tools import session
+
+
+def test_control_bar_read_script_scopes_to_control_bar():
+    s = session._control_bar_read_script("slider", 'whose description is "Tempo"')
+    assert "set icb" in s
+    assert 'description is "Control Bar"' in s
+    assert "entire contents" not in s
+
+
+def test_tempo_script_reads_tempo_slider():
+    assert "slider" in session._TEMPO_SCRIPT
+    assert 'description is "Tempo"' in session._TEMPO_SCRIPT
+    assert "entire contents" not in session._TEMPO_SCRIPT
+
+
+def test_key_script_reads_key_popup():
+    assert "pop up button" in session._KEY_SCRIPT
+    assert 'description is "Key Signature"' in session._KEY_SCRIPT
+    assert "entire contents" not in session._KEY_SCRIPT
+
+
+def test_control_bar_script_uses_tell_proc():
+    s = session._control_bar_read_script("slider", 'whose description is "Tempo"')
+    assert executor.TELL_PROC in s
