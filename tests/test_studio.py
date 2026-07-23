@@ -260,6 +260,23 @@ def test_build_fn_accepts_midi_kwarg():
     assert "midi" in params and params["midi"].default is None
 
 
+def test_import_menu_click_uses_real_ellipsis():
+    from tools import build
+
+    s = build._import_menu_click("Audio File…")
+    assert "…" in s  # real ellipsis U+2026, not three ASCII dots
+    assert "..." not in s
+    # nesting verified live in docs/smart-tempo-probe.md
+    assert 'menu 1 of menu item "Import"' in s
+    assert 'menu bar item "File" of menu bar 1' in s
+
+
+def test_import_menu_click_embeds_label():
+    from tools import build
+
+    assert 'menu item "MIDI File…"' in build._import_menu_click("MIDI File…")
+
+
 # ---- track selection script builder (pure) ----
 
 from tools import tracks

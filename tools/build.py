@@ -112,6 +112,21 @@ end tell
     executor.run_applescript(script, timeout=20)
 
 
+def _import_menu_click(item_label: str) -> str:
+    """The `File > Import > <item_label>` menu-click line.
+
+    Pure (no side effects) so it can be unit-tested. `item_label` must carry a
+    real ellipsis U+2026 ("Audio File…"), not three ASCII dots — Logic 12
+    Creator Studio's menu items use the real glyph, and "..." silently fails to
+    match. Nesting (`menu 1 of menu item "Import" of menu 1 of menu bar item
+    "File"`) is the form verified live in docs/smart-tempo-probe.md.
+    """
+    return (
+        f'click menu item "{item_label}" of menu 1 of menu item "Import" '
+        'of menu 1 of menu bar item "File" of menu bar 1'
+    )
+
+
 def _import_stems(stems_dir: str) -> None:
     """Drive one File > Import > Audio File dialog to add every file in
     stems_dir to new tracks at the playhead."""
@@ -122,7 +137,7 @@ tell application "System Events"
     {_PROC}
         key code 36
         delay 0.3
-        click menu item "Audio File..." of menu "Import" of menu item "Import" of menu "File" of menu bar 1
+        {_import_menu_click("Audio File…")}
         delay 1.0
         keystroke "g" using {{command down, shift down}}
         delay 0.5
@@ -153,7 +168,7 @@ tell application "System Events"
     {_PROC}
         key code 36
         delay 0.3
-        click menu item "MIDI File..." of menu "Import" of menu item "Import" of menu "File" of menu bar 1
+        {_import_menu_click("MIDI File…")}
         delay 1.0
         keystroke "g" using {{command down, shift down}}
         delay 0.5
