@@ -1,14 +1,7 @@
 import executor
 from fastmcp import FastMCP
 
-_TOGGLE_PLAYBACK = """
-tell application "Logic Pro" to activate
-tell application "System Events"
-    tell process "Logic Pro Creator Studio"
-        keystroke " "
-    end tell
-end tell
-"""
+_TOGGLE_PLAYBACK = executor.keystroke_block('        keystroke " "')
 
 
 def register_transport_tools(mcp: FastMCP) -> None:
@@ -20,7 +13,7 @@ def register_transport_tools(mcp: FastMCP) -> None:
         Space is a toggle: this starts playback if stopped and stops it if
         already playing. There is no separate non-toggling play key command.
         """
-        executor.run_applescript(_TOGGLE_PLAYBACK)
+        executor.run_ui(_TOGGLE_PLAYBACK)
         return "Playback toggled"
 
     @mcp.tool()
@@ -33,61 +26,29 @@ def register_transport_tools(mcp: FastMCP) -> None:
         isn't read, so this is not idempotent — prefer logic_play for a plain
         toggle, and use this only when you know playback is running.
         """
-        executor.run_applescript(_TOGGLE_PLAYBACK)
+        executor.run_ui(_TOGGLE_PLAYBACK)
         return "Sent playback toggle (stops if playing)"
 
     @mcp.tool()
     def logic_record() -> str:
         """Start recording in Logic Pro (R key)."""
-        script = """
-tell application "Logic Pro" to activate
-tell application "System Events"
-    tell process "Logic Pro Creator Studio"
-        keystroke "r"
-    end tell
-end tell
-"""
-        executor.run_applescript(script)
+        executor.run_ui(executor.keystroke_block('        keystroke "r"'))
         return "Recording started"
 
     @mcp.tool()
     def logic_go_to_start() -> str:
         """Move playhead to bar 1 (Return key)."""
-        script = """
-tell application "Logic Pro" to activate
-tell application "System Events"
-    tell process "Logic Pro Creator Studio"
-        key code 36
-    end tell
-end tell
-"""
-        executor.run_applescript(script)
+        executor.run_ui(executor.keystroke_block("        key code 36"))
         return "Playhead at start"
 
     @mcp.tool()
     def logic_rewind() -> str:
         """Step playhead back (comma key)."""
-        script = """
-tell application "Logic Pro" to activate
-tell application "System Events"
-    tell process "Logic Pro Creator Studio"
-        keystroke ","
-    end tell
-end tell
-"""
-        executor.run_applescript(script)
+        executor.run_ui(executor.keystroke_block('        keystroke ","'))
         return "Rewound"
 
     @mcp.tool()
     def logic_fast_forward() -> str:
         """Step playhead forward (period key)."""
-        script = """
-tell application "Logic Pro" to activate
-tell application "System Events"
-    tell process "Logic Pro Creator Studio"
-        keystroke "."
-    end tell
-end tell
-"""
-        executor.run_applescript(script)
+        executor.run_ui(executor.keystroke_block('        keystroke "."'))
         return "Fast-forwarded"

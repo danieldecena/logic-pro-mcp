@@ -19,7 +19,7 @@ from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
 _APP = LOGIC_APP_NAME
-_PROC = 'tell process "Logic Pro Creator Studio"'
+_PROC = executor.TELL_PROC
 _CANONICAL = ("drums.wav", "bass.wav", "other.wav", "vocals.wav")
 
 
@@ -174,7 +174,7 @@ def _set_tempo(tempo: float) -> None:
     """Set project tempo via UI scripting on the transport text field."""
     script = f"""
 tell application "System Events"
-    tell process "Logic Pro Creator Studio"
+    {_PROC}
         repeat with f in text fields of front window
             try
                 set val to value of f
@@ -213,7 +213,7 @@ def _set_key(key: str) -> None:
 
     script = f"""
 tell application "System Events"
-    tell process "Logic Pro Creator Studio"
+    {_PROC}
         repeat with el in (entire contents of front window)
             try
                 if role of el is "AXPopUpButton" then

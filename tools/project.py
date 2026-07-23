@@ -10,9 +10,9 @@ def register_project_tools(mcp: FastMCP) -> None:
         """Return the name of the currently open Logic Pro project, or a status message."""
         if not executor.logic_is_running():
             return "Logic Pro is not running"
-        script = """
+        script = f"""
 tell application "System Events"
-    tell process "Logic Pro Creator Studio"
+    {executor.TELL_PROC}
         set winTitle to name of front window
     end tell
 end tell
@@ -33,12 +33,14 @@ end tell
 
         expanded = os.path.expanduser(path)
         if not os.path.exists(expanded):
-            raise ToolError(f"No file at {expanded}. Pass an absolute path to a .logicx project.")
+            raise ToolError(
+                f"No file at {expanded}. Pass an absolute path to a .logicx project."
+            )
         if not expanded.endswith(".logicx"):
             raise ToolError(f"{expanded} is not a .logicx project bundle.")
         path = expanded
         script = f"""
-tell application "Logic Pro"
+tell application "{executor.APP}"
     open POSIX file "{executor.as_applescript_str(path)}"
 end tell
 """
@@ -48,27 +50,15 @@ end tell
     @mcp.tool()
     def logic_save() -> str:
         """Save the current Logic Pro project (Cmd+S)."""
-        script = """
-tell application "Logic Pro" to activate
-tell application "System Events"
-    tell process "Logic Pro Creator Studio"
-        keystroke "s" using {command down}
-    end tell
-end tell
-"""
-        executor.run_applescript(script)
+        executor.run_ui(
+            executor.keystroke_block('        keystroke "s" using {command down}')
+        )
         return "Saved"
 
     @mcp.tool()
     def logic_new_project() -> str:
         """Create a new Logic Pro project (Cmd+N)."""
-        script = """
-tell application "Logic Pro" to activate
-tell application "System Events"
-    tell process "Logic Pro Creator Studio"
-        keystroke "n" using {command down}
-    end tell
-end tell
-"""
-        executor.run_applescript(script)
+        executor.run_ui(
+            executor.keystroke_block('        keystroke "n" using {command down}')
+        )
         return "New project dialog opened"

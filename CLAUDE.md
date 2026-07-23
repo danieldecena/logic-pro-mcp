@@ -81,6 +81,16 @@ claude mcp add -s user logic-pro -- /Users/home/Developer/music/logic-pro-mcp/.v
 ## Key rules
 
 - All AppleScript variable names must NOT start with `_`
-- Always `tell application "Logic Pro" to activate` before sending keystrokes
+- **Never hardcode the app or process name in a script.** The app is
+  `Logic Pro Creator Studio` here, `Logic Pro` on a stock install — both come
+  from `config.LOGIC_APP_NAME` / `config.LOGIC_PROCESS_NAME`, surfaced as
+  `executor.APP` / `executor.PROC` / `executor.ACTIVATE` / `executor.TELL_PROC`.
+  Interpolate those; a literal `tell application "Logic Pro"` fails with -1728
+  on this machine.
+- **Keystroke/menu tools**: build the script with `executor.keystroke_block(body)`
+  (wraps activate + `tell process`; `body` is verbatim so `{command down}` stays
+  literal) and run it via `executor.run_ui(script)`, which launches Logic first
+  if it isn't running. Read-only tools that report the not-running state
+  themselves call `executor.run_applescript` directly.
 - Logic Pro has no `.sdef` — never use `tell application "Logic Pro" to play`
 - See `.claude/skills/logic-pro-mcp/references/automation.md` for recipes

@@ -49,12 +49,12 @@ def _tempo_from_logicx() -> tuple[float, str] | None:
     return None
 
 
-_FIELD_SCRIPT = """
+_FIELD_SCRIPT = f"""
 tell application "System Events"
-    tell process "Logic Pro Creator Studio"
+    {executor.TELL_PROC}
         set AppleScript's text item delimiters to "\n"
         set allFields to every text field of front window
-        set vals to {}
+        set vals to {{}}
         repeat with f in allFields
             try
                 set fieldVal to value of f
@@ -75,9 +75,9 @@ _POS_RE = re.compile(r"^\d+\s+\d+\s+\d+\s+\d+$")
 
 # The control-bar key signature is an AXPopUpButton (value like "C Major"),
 # not a text field — scan the window's elements for it.
-_KEY_POPUP_SCRIPT = """
+_KEY_POPUP_SCRIPT = f"""
 tell application "System Events"
-    tell process "Logic Pro Creator Studio"
+    {executor.TELL_PROC}
         set ec to entire contents of front window
         repeat with el in ec
             try
@@ -106,11 +106,11 @@ def _get_fields() -> list[str]:
 # value, title, OR description rather than a text-field value. Scan the whole
 # front-window element tree (like the key read) and collect all three attributes
 # from every element, so we can pattern-match a BPM regardless of where it lives.
-_UI_VALUES_SCRIPT = """
+_UI_VALUES_SCRIPT = f"""
 tell application "System Events"
-    tell process "Logic Pro Creator Studio"
+    {executor.TELL_PROC}
         set AppleScript's text item delimiters to linefeed
-        set vals to {}
+        set vals to {{}}
         repeat with el in (entire contents of front window)
             try
                 set v to (value of el) as string

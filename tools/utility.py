@@ -14,7 +14,7 @@ from fastmcp.exceptions import ToolError
 #      recurses through a handler parameter instead of a worklist.
 #
 # Indentation encodes depth. Capped so a deep hierarchy can't hang the tool.
-_UI_DUMP_SCRIPT = """
+_UI_DUMP_SCRIPT = f"""
 property nodeCount : 0
 property maxNodes : 600
 
@@ -67,7 +67,7 @@ end dumpEl
 
 set nodeCount to 0
 tell application "System Events"
-    tell process "Logic Pro Creator Studio"
+    {executor.TELL_PROC}
         set w to front window
     end tell
 end tell
@@ -80,29 +80,19 @@ def register_utility_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     def logic_undo() -> str:
         """Undo the last action in Logic Pro (Cmd+Z)."""
-        script = """
-tell application "Logic Pro" to activate
-tell application "System Events"
-    tell process "Logic Pro Creator Studio"
-        keystroke "z" using {command down}
-    end tell
-end tell
-"""
-        executor.run_applescript(script)
+        executor.run_ui(
+            executor.keystroke_block('        keystroke "z" using {command down}')
+        )
         return "Undone"
 
     @mcp.tool()
     def logic_redo() -> str:
         """Redo the last undone action in Logic Pro (Cmd+Shift+Z)."""
-        script = """
-tell application "Logic Pro" to activate
-tell application "System Events"
-    tell process "Logic Pro Creator Studio"
-        keystroke "z" using {command down, shift down}
-    end tell
-end tell
-"""
-        executor.run_applescript(script)
+        executor.run_ui(
+            executor.keystroke_block(
+                '        keystroke "z" using {command down, shift down}'
+            )
+        )
         return "Redone"
 
     @mcp.tool()
@@ -110,15 +100,11 @@ end tell
         """Click a menu item in Logic Pro's menu bar. menu_name e.g. 'Track', item_name e.g. 'New Track...'"""
         item = executor.as_applescript_str(item_name)
         menu = executor.as_applescript_str(menu_name)
-        script = f"""
-tell application "Logic Pro" to activate
-tell application "System Events"
-    tell process "Logic Pro Creator Studio"
-        click menu item "{item}" of menu "{menu}" of menu bar 1
-    end tell
-end tell
-"""
-        executor.run_applescript(script)
+        executor.run_ui(
+            executor.keystroke_block(
+                f'        click menu item "{item}" of menu "{menu}" of menu bar 1'
+            )
+        )
         return f"Clicked {menu_name} > {item_name}"
 
     @mcp.tool()
@@ -126,9 +112,9 @@ end tell
         """Return whether Logic Pro is running and what project is open."""
         if not executor.logic_is_running():
             return "Logic Pro is not running"
-        script = """
+        script = f"""
 tell application "System Events"
-    tell process "Logic Pro Creator Studio"
+    {executor.TELL_PROC}
         set winTitle to name of front window
     end tell
 end tell

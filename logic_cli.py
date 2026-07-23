@@ -11,34 +11,27 @@ Commands:
   listtracks | mute | solo | save | newproject
   bounce [--confirm] | export [item] | project
 """
+
 import re
 import sys
 
 import executor
-import config
 
-PROC = 'tell process "Logic Pro Creator Studio"'
+PROC = executor.TELL_PROC
 
 
 def _keys(k):
-    return f"""
-tell application "Logic Pro" to activate
-tell application "System Events"
-    {PROC}
-        {k}
-    end tell
-end tell
-"""
+    return executor.keystroke_block("        " + k)
 
 
 TOGGLE = _keys('keystroke " "')
 
-_FIELD_SCRIPT = """
+_FIELD_SCRIPT = f"""
 tell application "System Events"
-    tell process "Logic Pro Creator Studio"
+    {PROC}
         set AppleScript's text item delimiters to "\n"
         set allFields to every text field of front window
-        set vals to {}
+        set vals to {{}}
         repeat with f in allFields
             try
                 set fieldVal to value of f
@@ -52,9 +45,9 @@ tell application "System Events"
 end tell
 """
 
-_KEY_POPUP = """
+_KEY_POPUP = f"""
 tell application "System Events"
-    tell process "Logic Pro Creator Studio"
+    {PROC}
         set ec to entire contents of front window
         repeat with el in ec
             try
@@ -69,10 +62,10 @@ tell application "System Events"
 end tell
 """
 
-_LIST_SCRIPT = """
+_LIST_SCRIPT = f"""
 tell application "System Events"
-    tell process "Logic Pro Creator Studio"
-        set trackNames to {}
+    {PROC}
+        set trackNames to {{}}
         set ec to entire contents of front window
         repeat with el in ec
             try
@@ -172,28 +165,21 @@ def cmd_listtracks():
 def cmd_bounce(confirm=False):
     if not executor.logic_is_running():
         return "Logic Pro is not running"
-    open_script = f"""
-tell application "Logic Pro" to activate
-tell application "System Events"
-    {PROC}
-        click menu item "Project or Section..." of menu "Bounce" of menu item "Bounce" of menu "File" of menu bar 1
-    end tell
-end tell
-"""
+    open_script = _keys(
+        'click menu item "Project or Section..." of menu "Bounce" '
+        'of menu item "Bounce" of menu "File" of menu bar 1'
+    )
     try:
         executor.run_applescript(open_script)
     except RuntimeError:
-        fb = f"""
-tell application "Logic Pro" to activate
-tell application "System Events"
-    {PROC}
-        click menu item "Bounce" of menu "File" of menu bar 1
-    end tell
-end tell
-"""
+        fb = _keys('click menu item "Bounce" of menu "File" of menu bar 1')
         executor.run_applescript(fb)
     if confirm:
-        executor.run_applescript(_keys("delay 0.5\n        key code 36\n        delay 0.8\n        key code 36"))
+        executor.run_applescript(
+            _keys(
+                "delay 0.5\n        key code 36\n        delay 0.8\n        key code 36"
+            )
+        )
         return "Bounce started with defaults. Check Exports/Drafts/"
     return "Bounce dialog opened — complete it in Logic (or pass --confirm)."
 
@@ -202,14 +188,10 @@ def cmd_export(item="All MIDI as MIDI File..."):
     if not executor.logic_is_running():
         return "Logic Pro is not running"
     it = executor.as_applescript_str(item)
-    script = f"""
-tell application "Logic Pro" to activate
-tell application "System Events"
-    {PROC}
-        click menu item "{it}" of menu "Export" of menu item "Export" of menu "File" of menu bar 1
-    end tell
-end tell
-"""
+    script = _keys(
+        f'click menu item "{it}" of menu "Export" '
+        'of menu item "Export" of menu "File" of menu bar 1'
+    )
     executor.run_applescript(script)
     return f"Opened Export > {item}"
 
@@ -224,7 +206,10 @@ SIMPLE = {
     "mute": (_keys('keystroke "m"'), "Toggled mute on selected track"),
     "solo": (_keys('keystroke "s"'), "Toggled solo on selected track"),
     "save": (_keys('keystroke "s" using {command down}'), "Saved"),
-    "newproject": (_keys('keystroke "n" using {command down}'), "New project dialog opened"),
+    "newproject": (
+        _keys('keystroke "n" using {command down}'),
+        "New project dialog opened",
+    ),
 }
 
 
@@ -239,19 +224,30 @@ def main():
             cmd_status()
             return 0
         if cmd == "project":
-            print(cmd_project()); return 0
+            print(cmd_project())
+            return 0
         if cmd == "listtracks":
-            print(cmd_listtracks()); return 0
+            print(cmd_listtracks())
+            return 0
         if cmd == "bounce":
-            print(cmd_bounce(confirm=(arg == "--confirm"))); return 0
+            print(cmd_bounce(confirm=(arg == "--confirm")))
+            return 0
         if cmd == "export":
-            print(cmd_export(arg or "All MIDI as MIDI File...")); return 0
+            print(cmd_export(arg or "All MIDI as MIDI File..."))
+            return 0
         if cmd in SIMPLE:
-            if cmd not in ("play", "stop") and cmd not in ("save", "newproject", "record", "gotostart", "rewind", "ff") and not executor.logic_is_running():
-                print("Logic Pro is not running"); return 1
+            if (
+                cmd not in ("play", "stop")
+                and cmd
+                not in ("save", "newproject", "record", "gotostart", "rewind", "ff")
+                and not executor.logic_is_running()
+            ):
+                print("Logic Pro is not running")
+                return 1
             script, msg = SIMPLE[cmd]
             executor.run_applescript(script)
-            print(msg); return 0
+            print(msg)
+            return 0
         print(f"unknown command: {cmd}")
         return 2
     except Exception as exc:  # surface AppleScript/permission errors to the artifact

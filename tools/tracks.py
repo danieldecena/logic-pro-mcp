@@ -13,16 +13,16 @@ import executor
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
-_PROC = 'tell process "Logic Pro Creator Studio"'
+_PROC = executor.TELL_PROC
 
 # Track headers are AXTextFields whose parent is an AXGroup inside an AXList
 # (the tracks-header area). This distinguishes them from the channel-strip name
 # field (whose parent chain is AXLayoutItem -> AXLayoutArea). Derived from the
 # live AX tree — re-inspect with `entire contents of front window` if it breaks.
-_LIST_SCRIPT = """
+_LIST_SCRIPT = f"""
 tell application "System Events"
-    tell process "Logic Pro Creator Studio"
-        set trackNames to {}
+    {_PROC}
+        set trackNames to {{}}
         set ec to entire contents of front window
         repeat with el in ec
             try
@@ -57,13 +57,13 @@ def _select_track_script(name: str | None = None, index: int | None = None) -> s
     if name:
         match = f'if v is equal to "{executor.as_applescript_str(name)}" then'
     elif index:
-        match = f'if idx is equal to {int(index)} then'
+        match = f"if idx is equal to {int(index)} then"
     else:
         raise ValueError("select track needs a non-empty name or a positive index")
     return f"""
-tell application "Logic Pro" to activate
+{executor.ACTIVATE}
 tell application "System Events"
-    tell process "Logic Pro Creator Studio"
+    {_PROC}
         set ec to entire contents of front window
         set idx to 0
         repeat with el in ec
@@ -128,15 +128,11 @@ def register_track_tools(mcp: FastMCP) -> None:
         A dialog appears for track type/options; accept defaults or drive it
         with logic_navigate_menu / keystrokes afterward.
         """
-        script = f"""
-tell application "Logic Pro" to activate
-tell application "System Events"
-    {_PROC}
-        click menu item "New Track..." of menu "Track" of menu bar 1
-    end tell
-end tell
-"""
-        executor.run_applescript(script)
+        executor.run_ui(
+            executor.keystroke_block(
+                '        click menu item "New Track..." of menu "Track" of menu bar 1'
+            )
+        )
         return "New Track dialog opened"
 
     def _select(name: str = "", index: int = 0) -> str:
@@ -144,13 +140,19 @@ end tell
         if not name and not index:
             raise ToolError("Pass a track name or a 1-based index")
         try:
-            out = executor.run_applescript(_select_track_script(name=name or None, index=index or None)).strip()
+            out = executor.run_applescript(
+                _select_track_script(name=name or None, index=index or None)
+            ).strip()
         except executor.NoProjectWindowError as exc:
             raise ToolError(str(exc))
         if out.startswith("selected:"):
             return out.split(":", 1)[1]
         try:
-            avail = [n for n in executor.run_applescript(_LIST_SCRIPT).strip().split("\n") if n.strip()]
+            avail = [
+                n
+                for n in executor.run_applescript(_LIST_SCRIPT).strip().split("\n")
+                if n.strip()
+            ]
         except Exception:
             avail = []
         hint = ("; available: " + ", ".join(avail)) if avail else ""
@@ -191,16 +193,12 @@ end tell
         if not executor.logic_is_running():
             raise ToolError("Logic Pro is not running")
         selected = _select(name=track) if track else None
-        script = f"""
-tell application "Logic Pro" to activate
-tell application "System Events"
-    {_PROC}
-        keystroke "m"
-    end tell
-end tell
-"""
-        executor.run_applescript(script)
-        return f"Toggled mute on {selected!r}" if selected else "Toggled mute on selected track"
+        executor.run_ui(executor.keystroke_block('        keystroke "m"'))
+        return (
+            f"Toggled mute on {selected!r}"
+            if selected
+            else "Toggled mute on selected track"
+        )
 
     @mcp.tool(
         annotations={
@@ -221,13 +219,9 @@ end tell
         if not executor.logic_is_running():
             raise ToolError("Logic Pro is not running")
         selected = _select(name=track) if track else None
-        script = f"""
-tell application "Logic Pro" to activate
-tell application "System Events"
-    {_PROC}
-        keystroke "s"
-    end tell
-end tell
-"""
-        executor.run_applescript(script)
-        return f"Toggled solo on {selected!r}" if selected else "Toggled solo on selected track"
+        executor.run_ui(executor.keystroke_block('        keystroke "s"'))
+        return (
+            f"Toggled solo on {selected!r}"
+            if selected
+            else "Toggled solo on selected track"
+        )

@@ -10,8 +10,6 @@ import executor
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 
-_PROC = 'tell process "Logic Pro Creator Studio"'
-
 # Convention from the music workspace folder structure.
 _EXPORTS_HINT = "~/Developer/music/Exports/Drafts/"
 
@@ -39,26 +37,17 @@ def register_bounce_tools(mcp: FastMCP) -> None:
         """
         if not executor.logic_is_running():
             raise ToolError("Logic Pro is not running")
-        open_script = f"""
-tell application "Logic Pro" to activate
-tell application "System Events"
-    {_PROC}
-        click menu item "Project or Section..." of menu "Bounce" of menu item "Bounce" of menu "File" of menu bar 1
-    end tell
-end tell
-"""
+        open_script = executor.keystroke_block(
+            '        click menu item "Project or Section..." of menu "Bounce" '
+            'of menu item "Bounce" of menu "File" of menu bar 1'
+        )
         try:
             executor.run_applescript(open_script)
         except RuntimeError as exc:
             # Menu structure varies; fall back to the flat menu path.
-            fallback = f"""
-tell application "Logic Pro" to activate
-tell application "System Events"
-    {_PROC}
-        click menu item "Bounce" of menu "File" of menu bar 1
-    end tell
-end tell
-"""
+            fallback = executor.keystroke_block(
+                '        click menu item "Bounce" of menu "File" of menu bar 1'
+            )
             try:
                 executor.run_applescript(fallback)
             except RuntimeError:
@@ -68,17 +57,9 @@ end tell
                 )
 
         if confirm_defaults:
-            confirm_script = f"""
-tell application "Logic Pro" to activate
-tell application "System Events"
-    {_PROC}
-        delay 0.5
-        key code 36
-        delay 0.8
-        key code 36
-    end tell
-end tell
-"""
+            confirm_script = executor.keystroke_block(
+                "        delay 0.5\n        key code 36\n        delay 0.8\n        key code 36"
+            )
             executor.run_applescript(confirm_script)
             return f"Bounce started with default settings. Check {_EXPORTS_HINT}"
         return (
@@ -103,13 +84,9 @@ end tell
         if not executor.logic_is_running():
             raise ToolError("Logic Pro is not running")
         item = executor.as_applescript_str(item_name)
-        script = f"""
-tell application "Logic Pro" to activate
-tell application "System Events"
-    {_PROC}
-        click menu item "{item}" of menu "Export" of menu item "Export" of menu "File" of menu bar 1
-    end tell
-end tell
-"""
+        script = executor.keystroke_block(
+            f'        click menu item "{item}" of menu "Export" '
+            'of menu item "Export" of menu "File" of menu bar 1'
+        )
         executor.run_applescript(script)
         return f"Opened Export > {item_name}"
