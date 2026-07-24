@@ -277,6 +277,31 @@ def test_import_menu_click_embeds_label():
     assert 'menu item "MIDI File…"' in build._import_menu_click("MIDI File…")
 
 
+# ---- import-verification script builders (pure) ----
+
+
+def test_track_count_script_counts_track_headers():
+    from tools import build
+
+    s = build._track_count_script()
+    # same track-header selector tracks._LIST_SCRIPT uses
+    assert "AXTextField" in s
+    assert "AXList" in s
+    assert "return n as string" in s
+    assert "tell process" in s
+    # a read: must not steal focus by activating Logic
+    assert "activate" not in s
+
+
+def test_window_count_script_reads_window_count():
+    from tools import build
+
+    s = build._window_count_script()
+    assert "count of windows" in s
+    assert "tell process" in s
+    assert "activate" not in s
+
+
 # ---- track selection script builder (pure) ----
 
 from tools import tracks

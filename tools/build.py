@@ -127,6 +127,75 @@ def _import_menu_click(item_label: str) -> str:
     )
 
 
+def _track_count_script() -> str:
+    """AppleScript that counts track-header rows in the front window.
+
+    Pure (no side effects) so it can be unit-tested. Counts AXTextFields whose
+    parent is an AXGroup inside an AXList — the same track-header selector
+    tracks._LIST_SCRIPT uses — and returns the count as a string. A read-only
+    tell (no `activate`) so verifying an import never steals focus.
+    """
+    return f"""
+tell application "System Events"
+    {_PROC}
+        set n to 0
+        set ec to entire contents of front window
+        repeat with el in ec
+            try
+                if role of el is "AXTextField" then
+                    set p1 to (value of attribute "AXParent" of el)
+                    set p2 to (value of attribute "AXParent" of p1)
+                    if (role of p1 is "AXGroup") and (role of p2 is "AXList") then
+                        set n to n + 1
+                    end if
+                end if
+            end try
+        end repeat
+        return n as string
+    end tell
+end tell
+"""
+
+
+def _window_count_script() -> str:
+    """AppleScript that returns how many windows the Logic process has.
+
+    Pure. Read-only tell (no `activate`). Zero windows after an import is the
+    definitive "the template/import sequence fell out of sync" signal.
+    """
+    return f"""
+tell application "System Events"
+    {_PROC}
+        return (count of windows) as string
+    end tell
+end tell
+"""
+
+
+def _count_tracks() -> int:
+    """Best-effort track-header count; 0 if the tree is unreadable or absent."""
+    try:
+        out = executor.run_applescript(_track_count_script(), timeout=20)
+    except Exception:
+        return 0
+    try:
+        return int(out.strip())
+    except ValueError:
+        return 0
+
+
+def _count_windows() -> int:
+    """Count the Logic process's windows; 0 if unreadable."""
+    try:
+        out = executor.run_applescript(_window_count_script())
+    except Exception:
+        return 0
+    try:
+        return int(out.strip())
+    except ValueError:
+        return 0
+
+
 def _import_stems(stems_dir: str) -> None:
     """Drive one File > Import > Audio File dialog to add every file in
     stems_dir to new tracks at the playhead."""
@@ -265,7 +334,11 @@ def build_project_with_stems(
     and imports the stems in one dialog. If `midi` is given (e.g. a transcribed
     bass line), it is also imported as a software-instrument track so it can be
     re-voiced. tempo/key are set if provided.
-    Returns a summary string.
+
+    Verifies the result before reporting: raises ToolError if Logic has no
+    project window afterward (the import sequence fell out of sync), and returns
+    an explicitly-unverified summary if the track-header count did not rise for
+    the stems — never the old unconditional "imported N stems" success string.
     """
     stems = collect_stems(stems_dir)
     _ensure_logic_running()
@@ -274,13 +347,45 @@ def build_project_with_stems(
         _set_tempo(tempo)
     if key:
         _set_key(key)
+    before = _count_tracks()
     _import_stems(stems_dir)
+    after = _count_tracks()
+
+    # The observed hard failure (memory betterdisplay-logic-offscreen) was the
+    # Cmd+N -> chooser -> import key sequence going out of sync and leaving Logic
+    # with NO project window, while the tool still claimed success. A missing
+    # window is unambiguous, so signal it as a real error rather than hedging.
+    if _count_windows() == 0:
+        raise ToolError(
+            "Import failed: Logic has no project window afterward — the "
+            "template/import key sequence got out of sync and nothing was "
+            "imported. Open Logic and retry, or import the stems manually."
+        )
+
+    imported = after - before
     names = ", ".join(Path(s).name for s in stems)
-    lines = [
-        f"Created a new Logic project and imported {len(stems)} stems as tracks: {names}.",
-        "Verify the tracks appear at bar 1; if the import sheet differed, re-run "
-        "or complete it in Logic.",
-    ]
+    if imported >= 1:
+        head = (
+            f"Imported {imported} track(s) into a new Logic project "
+            f"(from {len(stems)} stems: {names})."
+        )
+        if imported < len(stems):
+            head += (
+                f" Note: fewer tracks ({imported}) than stems ({len(stems)}) — "
+                "some may not have imported; check bar 1 in Logic."
+            )
+    else:
+        # Window is present but the track count did not rise. Track-header reads
+        # are best-effort, so this is "unverified", not a hard failure — say so
+        # honestly instead of claiming the old, unearned success.
+        head = (
+            f"Could not confirm the stems imported: Logic shows {after} track "
+            f"header(s), no increase for the {len(stems)} stems. The import "
+            "dialog may not have completed — open Logic and finish or re-run. "
+            "(Track-header reads are best-effort; if the tracks are in fact "
+            "there, the read missed them.)"
+        )
+    lines = [head]
     if midi and Path(midi).expanduser().is_file():
         _import_midi(midi)
         lines.append(
